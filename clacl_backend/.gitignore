@@ -1,0 +1,65 @@
+# Derlenmiş çıktı
+/dist
+/build
+
+# Bağımlılıklar
+/node_modules
+
+# Loglar
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# İşletim sistemi
+.DS_Store
+
+# Testler
+/coverage
+/.nyc_output
+
+# IDE ve düzenleyiciler
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Ortam değişkenleri
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+!.env.example
+
+# Geçici dizinler
+.temp
+.tmp
+
+# Çalışma zamanı
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Node tanı raporları
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# TypeScript / lint önbelleği
+*.tsbuildinfo
+.eslintcache
+
+/generated/prisma

@@ -1,0 +1,30 @@
+# Ortam ve gizli dosyalar (kök veya paylaşılan)
+.env
+.env.*
+!.env.example
+!.env*.example
+
+# İşletim sistemi
+.DS_Store
+Thumbs.db
+
+# Loglar
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Geçici / yedek
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Sertifikalar / anahtarlar (yerel)
+*.pem
+*.key
+
+# IDE (isteğe bağlı — alt projelerde ayrıntı var)
+.idea/

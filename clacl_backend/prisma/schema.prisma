@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Token {
+  id             Int         @id
+  creator        String
+  name           String
+  symbol         String
+  imageURI       String
+  virtualSupply  String      @default("0")
+  poolBalance    String      @default("0")
+  createdAt      Int
+  duration       Int
+  dead           Boolean     @default(false)
+  deathProcessed Boolean     @default(false)
+  totalHolders   Int         @default(0)
+  marketCap      Float       @default(0)
+  currentPrice   String      @default("0")
+  volume24h      Float       @default(0)
+  change24h      Float       @default(0)
+  firstBuyPrice  String?
+  trades         Trade[]
+  holders        Holder[]
+  lotteryWins    LotteryWin[]
+  claims         Claim[]
+  indexedAt      DateTime    @default(now())
+}
+
+model Trade {
+  id          Int      @id @default(autoincrement())
+  tokenId     Int
+  token       Token    @relation(fields: [tokenId], references: [id])
+  trader      String
+  isBuy       Boolean
+  tokenAmount String
+  monAmount   String
+  protocolFee String
+  creatorFee  String
+  newSupply   String
+  newPrice    String
+  txHash      String   @unique
+  blockNumber Int
+  timestamp   DateTime @default(now())
+}
+
+model Holder {
+  id      Int    @id @default(autoincrement())
+  tokenId Int
+  token   Token  @relation(fields: [tokenId], references: [id])
+  address String
+  balance String
+
+  @@unique([tokenId, address])
+}
+
+model LotteryWin {
+  id        Int      @id @default(autoincrement())
+  tokenId   Int
+  token     Token    @relation(fields: [tokenId], references: [id])
+  winner    String
+  amount    String
+  txHash    String
+  timestamp DateTime @default(now())
+}
+
+model Claim {
+  id        Int      @id @default(autoincrement())
+  tokenId   Int
+  token     Token    @relation(fields: [tokenId], references: [id])
+  holder    String
+  amount    String
+  txHash    String
+  timestamp DateTime @default(now())
+}
+
+model SyncState {
+  id              Int @id @default(1)
+  lastBlockNumber Int @default(0)
+}

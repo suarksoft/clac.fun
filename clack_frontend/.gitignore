@@ -1,0 +1,36 @@
+# v0 sandbox internal files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+.snowflake/
+.v0-trash/
+.vercel/
+next.user-config.*
+
+# Bağımlılıklar ve Next.js çıktıları
+node_modules/
+.next/
+out/
+
+# Turbopack / Turbo önbelleği
+.turbo/
+
+# Ortam değişkenleri (örnek şablonlar hariç)
+.env
+.env*.local
+!.env.example
+
+# Derleme / tip
+*.tsbuildinfo
+
+# Lint / test önbelleği
+.eslintcache
+coverage/
+
+# Genel
+.DS_Store
+*.pem
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
