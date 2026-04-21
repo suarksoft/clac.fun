@@ -39,7 +39,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="font-sans antialiased bg-background text-foreground min-h-screen">
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          forcedTheme="dark"
+          enableSystem={false}
+          enableColorScheme={false}
+          disableTransitionOnChange
+        >
           <Web3Provider>{children}</Web3Provider>
         </ThemeProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}

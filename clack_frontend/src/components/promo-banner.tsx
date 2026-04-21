@@ -14,6 +14,8 @@ export function PromoBanner() {
           src="/promo-banner.jpg"
           alt="Promo Background"
           fill
+          priority
+          loading="eager"
           className="object-cover opacity-40"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent" />
