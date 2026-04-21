@@ -10,8 +10,8 @@ function toCreatedAtSeconds(createdAt: Date | number): number {
 }
 
 export function useDeathClock(createdAt: Date | number, durationSeconds: number) {
-  // Hydration-safe başlangıç: SSR ve ilk client render aynı "now" değerini kullanır.
-  // Böylece Date.now() kaynaklı class/branch mismatch oluşmaz.
+  // Hydration-safe initialization: SSR and first client render share the same "now" value.
+  // This prevents Date.now()-driven class/branch mismatches.
   const [nowSeconds, setNowSeconds] = useState(() => toCreatedAtSeconds(createdAt))
 
   useEffect(() => {

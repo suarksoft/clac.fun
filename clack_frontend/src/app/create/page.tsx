@@ -235,7 +235,7 @@ export default function CreateTokenPage() {
                 className="w-full gap-3 bg-primary py-6 text-lg font-semibold text-primary-foreground hover:bg-primary/90"
               >
                 <Wallet className="h-5 w-5" />
-                Connect Wallet to Snap
+                Connect to Snap
               </Button>
             )}
 

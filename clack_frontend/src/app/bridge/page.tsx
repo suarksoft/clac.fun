@@ -115,7 +115,7 @@ export default function BridgePage() {
             {/* Connect Wallet Button */}
             <Button className="w-full gap-2 bg-primary py-6 text-lg text-primary-foreground hover:bg-primary/90">
               <Wallet className="h-5 w-5" />
-              Connect Wallet to Bridge
+              Connect to Bridge
             </Button>
 
             {/* Warning */}

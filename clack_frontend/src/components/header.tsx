@@ -71,6 +71,7 @@ export function Header() {
           </Link>
 
           <ConnectButton
+            label="Connect"
             accountStatus={{
               smallScreen: 'avatar',
               largeScreen: 'address',
@@ -126,7 +127,7 @@ export function Header() {
               Portfolio
             </Link>
             <div className="mt-2 px-1">
-              <ConnectButton showBalance={false} />
+              <ConnectButton label="Connect" showBalance={false} />
             </div>
           </nav>
         </div>

@@ -96,7 +96,7 @@ export function TradePanel({
       return
     }
     if (!parsedAmount) {
-      setErrorText('Geçerli bir miktar gir.')
+      setErrorText('Please enter a valid amount.')
       return
     }
     setErrorText(null)
@@ -120,7 +120,7 @@ export function TradePanel({
       }
       setAmount('')
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'İşlem başarısız oldu.')
+      setErrorText(error instanceof Error ? error.message : 'Transaction failed.')
     }
   }
 
@@ -218,7 +218,7 @@ export function TradePanel({
         {isDead
           ? "💀 THIS TOKEN GOT CLAC'D"
           : !isConnected
-          ? 'Connect Wallet'
+          ? 'Connect'
           : isPending || txReceipt.isLoading
           ? 'Processing...'
           : activeTab === 'buy'

@@ -2,13 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import {
-  CandlestickSeries,
-  ColorType,
-  HistogramSeries,
-  createChart,
-  type UTCTimestamp,
-} from 'lightweight-charts'
+import type { UTCTimestamp } from 'lightweight-charts'
 
 type CandlePoint = {
   time: UTCTimestamp
@@ -111,92 +105,104 @@ export function PriceChart({ currentPrice, priceChange, high, low, open }: Price
 
   useEffect(() => {
     if (!chartContainerRef.current) return
+    let disposed = false
+    let cleanup = () => {}
 
-    const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
-      height: chartContainerRef.current.clientHeight,
-      layout: {
-        background: { type: ColorType.Solid, color: '#06080f' },
-        textColor: '#8f93a6',
-        attributionLogo: false,
-      },
-      grid: {
-        vertLines: { color: 'rgba(148, 163, 184, 0.08)' },
-        horzLines: { color: 'rgba(148, 163, 184, 0.08)' },
-      },
-      rightPriceScale: {
-        borderColor: 'rgba(148, 163, 184, 0.12)',
-      },
-      timeScale: {
-        borderColor: 'rgba(148, 163, 184, 0.12)',
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      crosshair: {
-        vertLine: { color: 'rgba(148, 163, 184, 0.35)' },
-        horzLine: { color: 'rgba(148, 163, 184, 0.35)' },
-      },
-    })
+    const setupChart = async () => {
+      const { CandlestickSeries, ColorType, HistogramSeries, createChart } = await import('lightweight-charts')
+      if (disposed || !chartContainerRef.current) return
 
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#22c55e',
-      downColor: '#ef4444',
-      wickUpColor: '#22c55e',
-      wickDownColor: '#ef4444',
-      borderVisible: false,
-      priceLineVisible: false,
-      lastValueVisible: true,
-    })
+      const chart = createChart(chartContainerRef.current, {
+        width: chartContainerRef.current.clientWidth,
+        height: chartContainerRef.current.clientHeight,
+        layout: {
+          background: { type: ColorType.Solid, color: '#06080f' },
+          textColor: '#8f93a6',
+          attributionLogo: false,
+        },
+        grid: {
+          vertLines: { color: 'rgba(148, 163, 184, 0.08)' },
+          horzLines: { color: 'rgba(148, 163, 184, 0.08)' },
+        },
+        rightPriceScale: {
+          borderColor: 'rgba(148, 163, 184, 0.12)',
+        },
+        timeScale: {
+          borderColor: 'rgba(148, 163, 184, 0.12)',
+          timeVisible: true,
+          secondsVisible: false,
+        },
+        crosshair: {
+          vertLine: { color: 'rgba(148, 163, 184, 0.35)' },
+          horzLine: { color: 'rgba(148, 163, 184, 0.35)' },
+        },
+      })
 
-    const volumeSeries = chart.addSeries(HistogramSeries, {
-      color: isPositive ? 'rgba(34, 197, 94, 0.32)' : 'rgba(239, 68, 68, 0.32)',
-      priceFormat: { type: 'volume' },
-      priceScaleId: '',
-    })
+      const candleSeries = chart.addSeries(CandlestickSeries, {
+        upColor: '#22c55e',
+        downColor: '#ef4444',
+        wickUpColor: '#22c55e',
+        wickDownColor: '#ef4444',
+        borderVisible: false,
+        priceLineVisible: false,
+        lastValueVisible: true,
+      })
 
-    volumeSeries.priceScale().applyOptions({
-      scaleMargins: {
-        top: 0.82,
-        bottom: 0,
-      },
-    })
+      const volumeSeries = chart.addSeries(HistogramSeries, {
+        color: isPositive ? 'rgba(34, 197, 94, 0.32)' : 'rgba(239, 68, 68, 0.32)',
+        priceFormat: { type: 'volume' },
+        priceScaleId: '',
+      })
 
-    candleSeries.setData(
-      seriesData.map((item) => ({
-        time: item.time,
-        open: item.open,
-        high: item.high,
-        low: item.low,
-        close: item.close,
-      }))
-    )
-    volumeSeries.setData(
-      seriesData.map((item) => {
-        const isUp = item.close >= item.open
-        return {
+      volumeSeries.priceScale().applyOptions({
+        scaleMargins: {
+          top: 0.82,
+          bottom: 0,
+        },
+      })
+
+      candleSeries.setData(
+        seriesData.map((item) => ({
           time: item.time,
-          value: item.volume,
-          color: isUp ? 'rgba(34, 197, 94, 0.34)' : 'rgba(239, 68, 68, 0.34)',
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          close: item.close,
+        })),
+      )
+      volumeSeries.setData(
+        seriesData.map((item) => {
+          const isUp = item.close >= item.open
+          return {
+            time: item.time,
+            value: item.volume,
+            color: isUp ? 'rgba(34, 197, 94, 0.34)' : 'rgba(239, 68, 68, 0.34)',
+          }
+        }),
+      )
+
+      chart.timeScale().fitContent()
+
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          chart.applyOptions({
+            width: entry.contentRect.width,
+            height: entry.contentRect.height,
+          })
         }
       })
-    )
+      observer.observe(chartContainerRef.current)
 
-    chart.timeScale().fitContent()
-
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        chart.applyOptions({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        })
+      cleanup = () => {
+        observer.disconnect()
+        chart.remove()
       }
-    })
+    }
 
-    observer.observe(chartContainerRef.current)
-
+    setupChart()
     return () => {
-      observer.disconnect()
-      chart.remove()
+      disposed = true
+      cleanup()
     }
   }, [isPositive, seriesData])
 

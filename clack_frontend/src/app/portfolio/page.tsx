@@ -50,16 +50,16 @@ export default function PortfolioPage() {
             <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-primary/10">
               <Wallet className="h-12 w-12 text-primary" />
             </div>
-            <h1 className="mb-2 text-2xl font-bold text-foreground">Connect Your Wallet</h1>
+            <h1 className="mb-2 text-2xl font-bold text-foreground">Connect</h1>
             <p className="mb-6 max-w-sm text-muted-foreground">
-              Connect your wallet to view your portfolio, track your holdings, and see your trading history.
+              Connect to view your portfolio, track your holdings, and see your trading history.
             </p>
             <Button
               className="gap-2 bg-primary px-8 py-6 text-lg text-primary-foreground hover:bg-primary/90"
               onClick={() => openConnectModal?.()}
             >
               <Wallet className="h-5 w-5" />
-              Connect Wallet
+              Connect
             </Button>
           </div>
         </main>

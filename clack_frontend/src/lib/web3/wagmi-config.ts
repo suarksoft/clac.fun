@@ -1,5 +1,5 @@
 import { createConfig, http } from 'wagmi'
-import { injected, metaMask, coinbaseWallet, walletConnect } from 'wagmi/connectors'
+import { injected, metaMask, walletConnect } from 'wagmi/connectors'
 import { monadTestnet } from './chains'
 import { publicEnv } from '@/lib/env'
 
@@ -10,10 +10,9 @@ const connectors = hasWalletConnect
   ? [
       injected(),
       metaMask(),
-      coinbaseWallet({ appName: 'clac.fun' }),
       walletConnect({ projectId: projectId! }),
     ]
-  : [injected(), metaMask(), coinbaseWallet({ appName: 'clac.fun' })]
+  : [injected(), metaMask()]
 
 if (!hasWalletConnect && typeof window !== 'undefined') {
   console.warn(
