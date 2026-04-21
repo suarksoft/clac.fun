@@ -1,13 +1,23 @@
 'use client'
 
-import { trendingTokens } from '@/lib/mock-data'
 import { ChevronLeft, ChevronRight, Flame } from 'lucide-react'
 import { useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { TokenCard } from '@/components/token-card'
+import { useQuery } from '@tanstack/react-query'
+import { apiClient } from '@/lib/api/client'
+import { toUiToken } from '@/lib/api/mappers'
 
 export function TrendingCarousel() {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const { data: trendingTokens = [] } = useQuery({
+    queryKey: ['trending-tokens'],
+    queryFn: async () => {
+      const response = await apiClient.getTrendingTokens()
+      return response.map(toUiToken)
+    },
+    refetchInterval: 10000,
+  })
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
@@ -51,6 +61,11 @@ export function TrendingCarousel() {
         className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
+        {trendingTokens.length === 0 && (
+          <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+            Trending veri henuz yok.
+          </div>
+        )}
         {trendingTokens.map((token) => (
           <div key={token.id} className="w-[260px] shrink-0">
             <TokenCard token={token} />

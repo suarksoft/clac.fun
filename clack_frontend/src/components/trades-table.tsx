@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { mockTrades, formatAddress, formatTimeAgo, type Trade } from '@/lib/mock-data'
+import { formatAddress, formatTimeAgo } from '@/lib/format'
+import type { Trade } from '@/lib/ui-types'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { 
@@ -13,21 +14,8 @@ import {
   MessageSquare
 } from 'lucide-react'
 
-// Mock holders data
-const mockHolders = [
-  { address: '9550762b', label: 'Liquidity Pool Token', percentage: 20, score: null },
-  { address: '8481ef1f', percentage: 2.3812, score: 85 },
-  { address: '01b8f720', percentage: 1.5053, score: 72 },
-  { address: '3e6711a3', percentage: 2.1017, score: 90 },
-  { address: '54bc2f3b', percentage: 4.7591, score: 45 },
-  { address: '1b579254', percentage: 1.2341, score: 67 },
-  { address: 'a94f5ad5', percentage: 0.9823, score: 88 },
-  { address: 'bed267f8', percentage: 2.3600, score: 55 },
-  { address: '0ced4903', percentage: 0.8944, score: 79 },
-]
-
 interface TradesTableProps {
-  trades?: Trade[]
+  trades: Trade[]
 }
 
 export function TradesTable({ trades }: TradesTableProps) {
@@ -41,8 +29,17 @@ export function TradesTable({ trades }: TradesTableProps) {
     setMounted(true)
   }, [])
 
-  const totalPages = 20282
-  const tableTrades = trades || mockTrades
+  const pageSize = 20
+  const filteredTrades = trades.filter((trade) =>
+    filterBySize ? trade.amount > Number(filterValue || '0') : true
+  )
+  const totalPages = Math.max(1, Math.ceil(filteredTrades.length / pageSize))
+  const pageStart = (currentPage - 1) * pageSize
+  const tableTrades = filteredTrades.slice(pageStart, pageStart + pageSize)
+  const totalVolume = trades.reduce((sum, trade) => sum + trade.amount, 0)
+  const latestTrade = trades[0]
+  const buyTrades = trades.filter((trade) => trade.type === 'buy').length
+  const sellTrades = trades.filter((trade) => trade.type === 'sell').length
 
   return (
     <div className="rounded-xl border border-border bg-card">
@@ -50,23 +47,25 @@ export function TradesTable({ trades }: TradesTableProps) {
       <div className="grid grid-cols-5 border-b border-border">
         <div className="border-r border-border p-4 text-center">
           <p className="text-xs text-muted-foreground">Vol 24h</p>
-          <p className="font-mono text-sm font-bold text-foreground">$3.52M</p>
+          <p className="font-mono text-sm font-bold text-foreground">{totalVolume.toFixed(3)} MON</p>
         </div>
         <div className="border-r border-border p-4 text-center">
-          <p className="text-xs text-muted-foreground">Price</p>
-          <p className="font-mono text-sm font-bold text-foreground">$0.0120</p>
+          <p className="text-xs text-muted-foreground">Last Trade</p>
+          <p className="font-mono text-sm font-bold text-foreground">
+            {latestTrade ? `${latestTrade.amount.toFixed(4)} MON` : '--'}
+          </p>
         </div>
         <div className="border-r border-border p-4 text-center">
-          <p className="text-xs text-muted-foreground">5m</p>
-          <p className="font-mono text-sm font-bold text-emerald-500">+1.22%</p>
+          <p className="text-xs text-muted-foreground">Buys</p>
+          <p className="font-mono text-sm font-bold text-emerald-500">{buyTrades}</p>
         </div>
         <div className="border-r border-border p-4 text-center">
-          <p className="text-xs text-muted-foreground">1h</p>
-          <p className="font-mono text-sm font-bold text-emerald-500">+22.95%</p>
+          <p className="text-xs text-muted-foreground">Sells</p>
+          <p className="font-mono text-sm font-bold text-red-500">{sellTrades}</p>
         </div>
         <div className="p-4 text-center">
-          <p className="text-xs text-muted-foreground">6h</p>
-          <p className="font-mono text-sm font-bold text-emerald-500">+38.26%</p>
+          <p className="text-xs text-muted-foreground">Trades</p>
+          <p className="font-mono text-sm font-bold text-foreground">{trades.length}</p>
         </div>
       </div>
 
@@ -136,6 +135,13 @@ export function TradesTable({ trades }: TradesTableProps) {
             </tr>
           </thead>
           <tbody>
+            {tableTrades.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  Trade bulunamadi.
+                </td>
+              </tr>
+            )}
             {tableTrades.map((trade) => (
               <tr
                 key={trade.id}
@@ -232,42 +238,6 @@ export function TradesTable({ trades }: TradesTableProps) {
         >
           <ChevronsRight className="h-4 w-4" />
         </Button>
-      </div>
-    </div>
-  )
-}
-
-// Separate Holders Component
-export function HoldersPanel() {
-  return (
-    <div className="rounded-xl border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border p-4">
-        <h3 className="font-medium text-foreground">Top holders</h3>
-        <Button variant="outline" size="sm" className="text-xs">
-          Bubble map
-        </Button>
-      </div>
-      <div className="max-h-[400px] overflow-y-auto">
-        {mockHolders.map((holder, index) => (
-          <div
-            key={holder.address}
-            className="flex items-center justify-between border-b border-border/30 px-4 py-2.5 transition-colors hover:bg-secondary/20"
-          >
-            <div className="flex items-center gap-3">
-              <span className="font-mono text-sm text-foreground">
-                {holder.address}
-              </span>
-              {holder.label && (
-                <span className="text-xs text-muted-foreground">
-                  ({holder.label})
-                </span>
-              )}
-            </div>
-            <span className="font-mono text-sm text-foreground">
-              {holder.percentage.toFixed(holder.percentage >= 1 ? 0 : 4)}%
-            </span>
-          </div>
-        ))}
       </div>
     </div>
   )

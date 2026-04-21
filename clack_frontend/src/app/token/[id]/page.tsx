@@ -7,8 +7,8 @@ import { PriceChart } from '@/components/price-chart'
 import { TradePanel } from '@/components/trade-panel'
 import { TokenInfoPanel } from '@/components/token-info-panel'
 import { TradesTable } from '@/components/trades-table'
-import { mockTokens, formatTimeAgo, formatNumber } from '@/lib/mock-data'
-import type { Trade } from '@/lib/mock-data'
+import { formatTimeAgo, formatNumber } from '@/lib/format'
+import type { Trade } from '@/lib/ui-types'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -20,7 +20,6 @@ import { toUiToken, toUiTrade } from '@/lib/api/mappers'
 
 export default function TokenDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const fallbackToken = mockTokens.find((t) => t.id === id) || mockTokens[0]
   const resolvedTokenId = Number(id)
   const [liveTrades, setLiveTrades] = useState<Trade[]>([])
   const [mounted, setMounted] = useState(false)
@@ -34,15 +33,18 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
     queryFn: () => apiClient.getTradesByToken(id),
     refetchInterval: 10000,
   })
-  const token = tokenQuery.data ? toUiToken(tokenQuery.data) : fallbackToken
-  const death = useDeathClock(token.createdAt, token.durationSeconds)
-  const isDead = token.dead || death.isDead
-  const [displayPrice, setDisplayPrice] = useState(token.price)
+  const token = tokenQuery.data ? toUiToken(tokenQuery.data) : null
+  const pageTradeTokenId = Number.isFinite(resolvedTokenId) ? BigInt(resolvedTokenId) : BigInt(0)
+  const death = useDeathClock(token?.createdAt ?? new Date(), token?.durationSeconds ?? 1)
+  const isDead = token?.dead || death.isDead
+  const [displayPrice, setDisplayPrice] = useState(0)
   const displayMonPrice = displayPrice > 0 ? displayPrice.toExponential(3) : '0.00000000'
 
   useEffect(() => {
-    setDisplayPrice(token.price)
-  }, [token.price])
+    if (token) {
+      setDisplayPrice(token.price)
+    }
+  }, [token])
 
   useEffect(() => {
     setMounted(true)
@@ -55,6 +57,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
   }, [tradesQuery.data])
 
   useEffect(() => {
+    if (!token) return
     const socket = createSocketClient()
     const tokenId = Number(id)
 
@@ -89,10 +92,30 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
     return () => {
       socket.disconnect()
     }
-  }, [id, token.image, token.symbol])
+  }, [id, token])
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
+  }
+
+  if (tokenQuery.isError) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <LiveTicker />
+        <main className="flex flex-1 items-center justify-center text-red-400">Token verisi alinamadi.</main>
+      </div>
+    )
+  }
+
+  if (tokenQuery.isLoading || !token) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <LiveTicker />
+        <main className="flex flex-1 items-center justify-center text-muted-foreground">Token yukleniyor...</main>
+      </div>
+    )
   }
 
   return (
@@ -133,18 +156,18 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                     </button>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                    <span>CA:</span>
+                    <span>Token ID:</span>
                     <button
-                      onClick={() => copyToClipboard('0xaf...5b4444')}
+                      onClick={() => copyToClipboard(token.id)}
                       className="flex items-center gap-1 font-mono transition-colors hover:text-foreground"
                     >
-                      0xaf...5b4444
+                      #{token.id}
                       <Copy className="h-3 w-3" />
                     </button>
                     <span className="hidden sm:inline">|</span>
                     <span>Created by</span>
                     <div className="h-3 w-3 rounded-full bg-emerald-500" />
-                    <span className="font-mono">0xc6...2f2863</span>
+                    <span className="font-mono">{token.creator.slice(0, 6)}...{token.creator.slice(-4)}</span>
                     <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px]">AI</span>
                   </div>
                 </div>
@@ -254,6 +277,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                   high={token.marketCap * 1.05}
                   low={token.marketCap * 0.92}
                   open={token.marketCap * 0.98}
+                  trades={liveTrades}
                 />
                 {isDead && (
                   <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/55 backdrop-blur-[1px]">
@@ -271,27 +295,25 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="rounded-xl border border-border bg-card p-4">
                   <h3 className="mb-3 text-lg font-semibold text-foreground">Final Results</h3>
                   <div className="space-y-2 font-mono text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Pool at death:</span><span>18.5 MON</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Death tax (5%):</span><span>0.925 MON</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Pro-rata (65%):</span><span>11.42 MON</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Lottery (30%):</span><span>5.55 MON</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Pool at death:</span><span>--</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Death tax (5%):</span><span>--</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Pro-rata (65%):</span><span>--</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Lottery (30%):</span><span>--</span></div>
                   </div>
                   <div className="my-4 border-t border-border pt-3">
                     <p className="mb-2 text-sm font-semibold text-amber-400">🎰 Lottery Winners</p>
-                    <p className="text-sm text-muted-foreground">🏆 0xab3...f2 → 1.85 MON</p>
-                    <p className="text-sm text-muted-foreground">🏆 0x8c1...a9 → 1.85 MON</p>
-                    <p className="text-sm text-muted-foreground">🏆 0xf41...c3 → 1.85 MON</p>
+                    <p className="text-sm text-muted-foreground">Veri bekleniyor.</p>
                   </div>
                   <p className="mb-2 text-sm text-foreground">
-                    Your claim: <span className="font-mono text-amber-400">{token.claimableMon > 0 ? token.claimableMon.toFixed(1) : '2.4'} MON</span>
+                    Your claim: <span className="font-mono text-amber-400">{token.claimableMon.toFixed(4)} MON</span>
                   </p>
                   <Button className="w-full bg-amber-500 text-black hover:bg-amber-400">
-                    Claim {token.claimableMon > 0 ? token.claimableMon.toFixed(1) : '2.4'} MON
+                    Claim {token.claimableMon.toFixed(4)} MON
                   </Button>
                 </div>
               ) : (
                 <TradePanel
-                  tokenId={BigInt(Number.isFinite(resolvedTokenId) ? resolvedTokenId : Number(fallbackToken.id))}
+                  tokenId={pageTradeTokenId}
                   tokenSymbol={token.symbol}
                   currentPrice={token.price}
                   isDead={isDead}

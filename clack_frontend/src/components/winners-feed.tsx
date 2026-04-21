@@ -1,56 +1,20 @@
 'use client'
 
 import Image from 'next/image'
-
-const winners = [
-  {
-    id: 'w1',
-    avatar: '/tokens/laser-eyes.jpg',
-    wallet: '0xab3',
-    token: 'BLITZ',
-    subtitle: '$5 -> $47',
-    value: '9.4x',
-    status: 'Profit',
-  },
-  {
-    id: 'w2',
-    avatar: '/tokens/chad-bull.jpg',
-    wallet: '0x8c1',
-    token: 'KAYSERI',
-    subtitle: 'Lottery win',
-    value: '$180',
-    status: 'Lottery',
-  },
-  {
-    id: 'w3',
-    avatar: '/tokens/rocket-cat.jpg',
-    wallet: '0xfa2',
-    token: 'LASER',
-    subtitle: '$12 -> $61',
-    value: '5.1x',
-    status: 'Profit',
-  },
-  {
-    id: 'w4',
-    avatar: '/tokens/wagmi-wolf.jpg',
-    wallet: '0x1d2',
-    token: 'WAGMI',
-    subtitle: 'Lottery win',
-    value: '$92',
-    status: 'Lottery',
-  },
-  {
-    id: 'w5',
-    avatar: '/tokens/fomo-fox.jpg',
-    wallet: '0x7b4',
-    token: 'MOON',
-    subtitle: '$8 -> $53',
-    value: '6.6x',
-    status: 'Profit',
-  },
-]
+import { useQuery } from '@tanstack/react-query'
+import { apiClient } from '@/lib/api/client'
+import { toUiTrade } from '@/lib/api/mappers'
+import { formatAddress } from '@/lib/format'
 
 export function WinnersFeed() {
+  const { data: winners = [] } = useQuery({
+    queryKey: ['winners'],
+    queryFn: async () => {
+      const response = await apiClient.getWinners()
+      return response.map(toUiTrade).slice(0, 10)
+    },
+    refetchInterval: 10000,
+  })
   const loopItems = [...winners, ...winners]
 
   return (
@@ -60,23 +24,25 @@ export function WinnersFeed() {
         <div className="flex w-max animate-ticker gap-1.5">
           {loopItems.map((item, index) => (
             <div
-              key={`${item.id}-${index}`}
+              key={`${item.txHash}-${index}`}
               className="min-w-[148px] shrink-0 rounded-md bg-[#0b0f18] px-2 py-1.5"
             >
               <div className="flex items-center gap-1.5">
                 <div className="relative h-7 w-7 overflow-hidden rounded-sm">
-                  <Image src={item.avatar} alt={item.token} fill className="object-cover" />
+                  <Image src={item.tokenImage} alt={item.tokenSymbol} fill className="object-cover" />
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-[11px] font-semibold leading-tight text-white">{item.wallet}</p>
-                  <p className="truncate text-[10px] leading-tight text-[#a5adff]">{item.token}</p>
+                  <p className="truncate text-[11px] font-semibold leading-tight text-white">{formatAddress(item.account)}</p>
+                  <p className="truncate text-[10px] leading-tight text-[#a5adff]">{item.tokenSymbol}</p>
                 </div>
               </div>
-              <p className="mt-1 text-[10px] leading-tight text-muted-foreground">{item.subtitle}</p>
+              <p className="mt-1 text-[10px] leading-tight text-muted-foreground">
+                {item.type === 'sell' ? 'Realized value' : 'Trade volume'}
+              </p>
               <p
-                className={`text-[11px] font-bold leading-tight ${item.status === 'Lottery' ? 'text-amber-400' : 'text-emerald-400'}`}
+                className={`text-[11px] font-bold leading-tight ${item.type === 'sell' ? 'text-amber-400' : 'text-emerald-400'}`}
               >
-                {item.value}
+                {item.amount.toFixed(2)} MON
               </p>
             </div>
           ))}

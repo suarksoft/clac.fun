@@ -3,15 +3,25 @@
 import { useEffect, useState } from 'react'
 import { Header } from '@/components/header'
 import { LiveTicker } from '@/components/live-ticker'
-import { mockTokens, formatNumber } from '@/lib/mock-data'
+import { formatNumber } from '@/lib/format'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Trophy, TrendingUp, Users } from 'lucide-react'
 import { getDeathClockState } from '@/lib/death-clock'
+import { useQuery } from '@tanstack/react-query'
+import { apiClient } from '@/lib/api/client'
+import { toUiToken } from '@/lib/api/mappers'
 
 export default function LeaderboardPage() {
   const [nowSeconds, setNowSeconds] = useState(() => Math.floor(Date.now() / 1000))
-  const sortedTokens = [...mockTokens].sort((a, b) => b.marketCap - a.marketCap)
+  const { data: sortedTokens = [] } = useQuery({
+    queryKey: ['leaderboard'],
+    queryFn: async () => {
+      const response = await apiClient.getLeaderboard()
+      return response.map(toUiToken)
+    },
+    refetchInterval: 10000,
+  })
 
   useEffect(() => {
     const timer = window.setInterval(() => {

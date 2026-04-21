@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { UTCTimestamp } from 'lightweight-charts'
+import type { Trade } from '@/lib/ui-types'
 
 type CandlePoint = {
   time: UTCTimestamp
@@ -14,7 +15,7 @@ type CandlePoint = {
 }
 
 const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d']
-const timeframeMinutes: Record<string, number> = {
+const timeframeSeconds: Record<string, number> = {
   '1m': 1,
   '5m': 5,
   '15m': 15,
@@ -23,59 +24,46 @@ const timeframeMinutes: Record<string, number> = {
   '1d': 1440,
 }
 
-function generateBaseSeries(basePrice: number): CandlePoint[] {
-  const points: CandlePoint[] = []
-  const now = Math.floor(Date.now() / 1000)
-  let close = Math.max(basePrice, 100)
-
-  for (let i = 0; i < 720; i++) {
-    const time = (now - (719 - i) * 60) as UTCTimestamp
-    const volatility = basePrice * 0.0035
-    const drift = (Math.random() - 0.49) * volatility
-    const open = close
-    close = Math.max(100, close + drift)
-    const wickOffset = Math.max(basePrice * 0.001, Math.random() * volatility * 0.65)
-    const high = Math.max(open, close) + wickOffset
-    const low = Math.min(open, close) - wickOffset
-
-    points.push({
-      time,
-      open: Number(open.toFixed(2)),
-      high: Number(high.toFixed(2)),
-      low: Number(Math.max(1, low).toFixed(2)),
-      close: Number(close.toFixed(2)),
-      volume: Math.random() * 12000 + 1200,
-    })
-  }
-
-  return points
+function toUnitPrice(trade: Trade): number {
+  if (trade.tokenAmount <= 0) return 0
+  return trade.amount / trade.tokenAmount
 }
 
-function aggregateSeries(data: CandlePoint[], stepMinutes: number): CandlePoint[] {
-  if (stepMinutes <= 1) return data
-  const step = stepMinutes
-  const grouped: CandlePoint[] = []
+function buildCandlesFromTrades(trades: Trade[], bucketSeconds: number): CandlePoint[] {
+  if (!trades.length) return []
 
-  for (let i = 0; i < data.length; i += step) {
-    const slice = data.slice(i, i + step)
-    if (!slice.length) continue
-    const first = slice[0]
-    const last = slice[slice.length - 1]
-    const volume = slice.reduce((acc, item) => acc + item.volume, 0)
-    const high = Math.max(...slice.map((item) => item.high))
-    const low = Math.min(...slice.map((item) => item.low))
+  const sorted = [...trades].sort((a, b) => a.time.getTime() - b.time.getTime())
+  const byBucket = new Map<number, Trade[]>()
 
-    grouped.push({
-      time: last.time,
-      open: first.open,
+  for (const trade of sorted) {
+    const unix = Math.floor(trade.time.getTime() / 1000)
+    const bucketStart = Math.floor(unix / bucketSeconds) * bucketSeconds
+    const arr = byBucket.get(bucketStart) || []
+    arr.push(trade)
+    byBucket.set(bucketStart, arr)
+  }
+
+  const points: CandlePoint[] = []
+  for (const [bucketStart, bucketTrades] of byBucket.entries()) {
+    const prices = bucketTrades.map(toUnitPrice).filter((price) => Number.isFinite(price) && price > 0)
+    if (!prices.length) continue
+    const open = prices[0]
+    const close = prices[prices.length - 1]
+    const high = Math.max(...prices)
+    const low = Math.min(...prices)
+    const volume = bucketTrades.reduce((sum, trade) => sum + trade.amount, 0)
+
+    points.push({
+      time: bucketStart as UTCTimestamp,
+      open,
       high,
       low,
-      close: last.close,
+      close,
       volume,
     })
   }
 
-  return grouped
+  return points.sort((a, b) => a.time - b.time)
 }
 
 interface PriceChartProps {
@@ -84,18 +72,18 @@ interface PriceChartProps {
   high: number
   low: number
   open: number
+  trades: Trade[]
 }
 
-export function PriceChart({ currentPrice, priceChange, high, low, open }: PriceChartProps) {
+export function PriceChart({ currentPrice, priceChange, high, low, open, trades }: PriceChartProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState('1m')
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
   const isPositive = priceChange >= 0
 
   const seriesData = useMemo(() => {
-    const base = generateBaseSeries(currentPrice)
-    const step = timeframeMinutes[selectedTimeframe] ?? 1
-    return aggregateSeries(base, step)
-  }, [currentPrice, selectedTimeframe])
+    const bucketSeconds = (timeframeSeconds[selectedTimeframe] ?? 1) * 60
+    return buildCandlesFromTrades(trades, bucketSeconds)
+  }, [selectedTimeframe, trades])
 
   const volumeSma = useMemo(() => {
     const last20 = seriesData.slice(-20)
@@ -104,7 +92,7 @@ export function PriceChart({ currentPrice, priceChange, high, low, open }: Price
   }, [seriesData])
 
   useEffect(() => {
-    if (!chartContainerRef.current) return
+    if (!chartContainerRef.current || seriesData.length === 0) return
     let disposed = false
     let cleanup = () => {}
 
@@ -256,7 +244,13 @@ export function PriceChart({ currentPrice, priceChange, high, low, open }: Price
       </div>
 
       {/* Chart */}
-      <div ref={chartContainerRef} className="h-[320px] w-full md:h-[430px]" />
+      {seriesData.length === 0 ? (
+        <div className="flex h-[320px] w-full items-center justify-center rounded-lg border border-border bg-secondary/20 text-sm text-muted-foreground md:h-[430px]">
+          Gercek trade verisi bekleniyor...
+        </div>
+      ) : (
+        <div ref={chartContainerRef} className="h-[320px] w-full md:h-[430px]" />
+      )}
 
       {/* Volume Bar */}
       <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">

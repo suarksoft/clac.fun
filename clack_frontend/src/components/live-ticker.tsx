@@ -1,6 +1,6 @@
 'use client'
 
-import { formatAddress } from '@/lib/mock-data'
+import { formatAddress } from '@/lib/format'
 import { useLiveEvents } from '@/hooks/use-live-events'
 import Image from 'next/image'
 

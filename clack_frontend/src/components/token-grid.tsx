@@ -1,12 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { mockTokens, Token } from '@/lib/mock-data'
+import type { Token } from '@/lib/ui-types'
 import { TokenCard } from './token-card'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { getDeathClockState } from '@/lib/death-clock'
+import { useQuery } from '@tanstack/react-query'
+import { apiClient } from '@/lib/api/client'
+import { toUiToken } from '@/lib/api/mappers'
 
 type FilterOption = 'live' | 'dying' | 'hot' | 'new' | 'clacd' | 'claiming'
 
@@ -14,6 +17,16 @@ export function TokenGrid() {
   const [activeFilter, setActiveFilter] = useState<FilterOption>('live')
   const [showNSFW, setShowNSFW] = useState(false)
   const [nowSeconds, setNowSeconds] = useState(() => Math.floor(Date.now() / 1000))
+  const { data: tokensData = [], isLoading } = useQuery({
+    queryKey: ['tokens', activeFilter],
+    queryFn: async () => {
+      const backendFilter =
+        activeFilter === 'clacd' ? 'dead' : activeFilter === 'claiming' ? 'live' : activeFilter
+      const response = await apiClient.getTokens(backendFilter)
+      return response.map(toUiToken)
+    },
+    refetchInterval: 10000,
+  })
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -44,7 +57,7 @@ export function TokenGrid() {
     }
   }
 
-  const filteredTokens = mockTokens.filter((token) => {
+  const filteredTokens = tokensData.filter((token) => {
     const death = getDeathClockState(token.createdAt, token.durationSeconds, nowSeconds)
     const isDead = token.dead || death.isDead
     switch (activeFilter) {
@@ -129,6 +142,16 @@ export function TokenGrid() {
       </div>
 
       {/* Grid */}
+      {isLoading && (
+        <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+          Tokens yukleniyor...
+        </div>
+      )}
+      {!isLoading && sortedTokens.length === 0 && (
+        <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+          Gosterilecek token bulunamadi.
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {sortedTokens.map((token) => (
           <TokenCard key={token.id} token={token} />

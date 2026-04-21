@@ -27,9 +27,18 @@ export interface BackendTrade {
   txHash: string
   timestamp: string
   token?: {
+    id?: number
     name: string
     symbol: string
+    imageURI?: string
   }
+}
+
+export interface BackendHolder {
+  id: number
+  tokenId: number
+  address: string
+  balance: string
 }
 
 export interface BackendPortfolio {

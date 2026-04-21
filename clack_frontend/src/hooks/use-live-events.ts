@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient, createSocketClient } from '@/lib/api/client'
 import { toUiTrade, tradeToLiveEvent } from '@/lib/api/mappers'
-import { mockLiveEvents } from '@/lib/mock-data'
+import type { LiveEvent } from '@/lib/ui-types'
 
 export function useLiveEvents() {
-  const [events, setEvents] = useState(mockLiveEvents)
+  const [events, setEvents] = useState<LiveEvent[]>([])
 
   const recentTradesQuery = useQuery({
     queryKey: ['recent-trades'],
@@ -32,7 +32,7 @@ export function useLiveEvents() {
         type: payload.isBuy ? 'buy' : 'sell',
         account: payload.trader,
         amount: Number(payload.monAmount || 0),
-        tokenSymbol: payload.symbol || 'CLAC',
+          tokenSymbol: payload.tokenSymbol || 'CLAC',
         tokenImage: '/tokens/pepe-king.jpg',
         time: new Date(),
       } as const
@@ -47,7 +47,7 @@ export function useLiveEvents() {
           type: 'clac',
           account: payload.triggeredBy || 'system',
           amount: Number(payload.poolRemaining || 0),
-          tokenSymbol: payload.symbol || 'CLAC',
+          tokenSymbol: payload.tokenSymbol || 'CLAC',
           tokenImage: '/tokens/chad-bull.jpg',
           time: new Date(),
         },
@@ -62,7 +62,7 @@ export function useLiveEvents() {
           type: 'lottery',
           account: payload.winner,
           amount: Number(payload.amount || 0),
-          tokenSymbol: payload.symbol || 'CLAC',
+          tokenSymbol: payload.tokenSymbol || 'CLAC',
           tokenImage: '/tokens/rocket-cat.jpg',
           time: new Date(),
         },

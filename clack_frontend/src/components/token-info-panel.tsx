@@ -1,6 +1,7 @@
 'use client'
 
-import { Token, formatAddress, formatTimeAgo } from '@/lib/mock-data'
+import type { Token } from '@/lib/ui-types'
+import { formatAddress, formatTimeAgo } from '@/lib/format'
 import Image from 'next/image'
 import { Copy, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -21,9 +22,10 @@ export function TokenInfoPanel({ token }: TokenInfoPanelProps) {
     navigator.clipboard.writeText(text)
   }
 
-  const buys = 192
-  const sells = 241
-  const buyRate = (buys / (buys + sells)) * 100
+  const buys = token.buys
+  const sells = token.sells
+  const totalSide = buys + sells
+  const buyRate = totalSide > 0 ? (buys / totalSide) * 100 : 0
 
   return (
     <div className="space-y-3">
@@ -31,7 +33,7 @@ export function TokenInfoPanel({ token }: TokenInfoPanelProps) {
         <div className="space-y-2 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Pool Balance</span>
-            <span className="font-mono text-foreground">45.2 MON</span>
+            <span className="font-mono text-foreground">{token.claimableMon.toFixed(4)} MON</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Total Trades</span>
@@ -39,7 +41,7 @@ export function TokenInfoPanel({ token }: TokenInfoPanelProps) {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Death Tax Pool</span>
-            <span className="font-mono text-foreground">~2.3 MON</span>
+            <span className="font-mono text-foreground">--</span>
           </div>
         </div>
       </div>
@@ -79,11 +81,11 @@ export function TokenInfoPanel({ token }: TokenInfoPanelProps) {
           </div>
           <div className="rounded-md border border-border bg-secondary/20 p-2">
             <p className="text-[10px] text-muted-foreground">PRICE MON</p>
-            <p className="font-mono text-xs text-foreground">0.03</p>
+            <p className="font-mono text-xs text-foreground">{token.price.toExponential(4)}</p>
           </div>
           <div className="rounded-md border border-border bg-secondary/20 p-2">
             <p className="text-[10px] text-muted-foreground">FDV</p>
-            <p className="font-mono text-xs text-foreground">$1.15M</p>
+            <p className="font-mono text-xs text-foreground">${token.marketCap.toFixed(2)}</p>
           </div>
         </div>
 
@@ -111,7 +113,7 @@ export function TokenInfoPanel({ token }: TokenInfoPanelProps) {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-muted-foreground">TXNS 433</span>
+            <span className="text-muted-foreground">TXNS {token.txCount}</span>
             <span className="text-muted-foreground">
               BUYS <span className="text-emerald-500">{buys}</span> / SELLS <span className="text-red-500">{sells}</span>
             </span>
@@ -150,10 +152,10 @@ export function TokenInfoPanel({ token }: TokenInfoPanelProps) {
             <div className="flex items-center justify-between rounded-md border border-border bg-secondary/20 px-2.5 py-2">
               <span className="text-[11px] text-muted-foreground">Contract Address</span>
               <button
-                onClick={() => copyToClipboard('0x81A2...7777')}
+                onClick={() => copyToClipboard(token.id)}
                 className="flex items-center gap-1.5 text-xs text-foreground hover:text-primary"
               >
-                0x81A2...7777
+                #{token.id}
                 <Copy className="h-3 w-3" />
               </button>
             </div>

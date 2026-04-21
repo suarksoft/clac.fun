@@ -1,6 +1,7 @@
 'use client'
 
-import { Token, formatNumber, formatTimeAgo } from '@/lib/mock-data'
+import type { Token } from '@/lib/ui-types'
+import { formatNumber, formatTimeAgo } from '@/lib/format'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Users, BarChart3, Clock } from 'lucide-react'
