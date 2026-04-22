@@ -65,13 +65,20 @@ export function TradePanel({
     amount && amount !== 'max' ? (parseFloat(amount) / currentPrice).toFixed(2) : '0'
 
   const parsedAmount = useMemo(() => {
-    if (!amount || amount === 'max') return null
+    const normalized = amount.trim()
+    if (!normalized || normalized === 'max') return null
     try {
-      return parseEther(amount)
+      return parseEther(normalized)
     } catch {
       return null
     }
   }, [amount])
+
+  useEffect(() => {
+    setAmount('')
+    setQuote(null)
+    setErrorText(null)
+  }, [activeTab])
 
   useEffect(() => {
     if (!parsedAmount || !publicClient || isDead) {
@@ -148,6 +155,23 @@ export function TradePanel({
       setErrorText('Please enter a valid amount.')
       return
     }
+    if (activeTab === 'sell') {
+      if (walletTokenBalance <= 0) {
+        setErrorText(`You do not have ${tokenSymbol} to sell.`)
+        return
+      }
+      const amountAsNumber = Number(amount)
+      if (!Number.isFinite(amountAsNumber) || amountAsNumber <= 0) {
+        setErrorText(`Enter a valid ${tokenSymbol} amount.`)
+        return
+      }
+      if (amountAsNumber > walletTokenBalance) {
+        setErrorText(
+          `Insufficient ${tokenSymbol} balance. Max: ${walletTokenBalance.toFixed(6)}`,
+        )
+        return
+      }
+    }
     setErrorText(null)
 
     try {
@@ -184,6 +208,16 @@ export function TradePanel({
     }
     const value = (walletTokenBalance * percent) / 100
     setAmount(value.toFixed(6))
+  }
+
+  const setBuyAmountByQuickAction = (value: string) => {
+    if (value === 'max') {
+      const gasReserve = 0.01
+      const maxSpendable = Math.max(walletMonBalance - gasReserve, 0)
+      setAmount(maxSpendable > 0 ? maxSpendable.toFixed(6) : '')
+      return
+    }
+    setAmount(value)
   }
 
   return (
@@ -246,7 +280,7 @@ export function TradePanel({
           {quickBuyAmounts.map((qa) => (
             <button
               key={qa.label}
-              onClick={() => setAmount(qa.value)}
+              onClick={() => setBuyAmountByQuickAction(qa.value)}
               disabled={isDead}
               className={`rounded-md border py-1.5 text-[11px] font-medium transition-colors ${
                 qa.isReset
@@ -289,7 +323,7 @@ export function TradePanel({
       <div className="mb-2 flex items-center justify-between text-[11px]">
         <span className="text-muted-foreground">Expected</span>
         <span className="font-mono text-primary">
-          {activeTab === 'buy' ? `${calculatedTokens} ${tokenSymbol}` : `${amount || '0'} MON`}
+          {activeTab === 'buy' ? `${calculatedTokens} ${tokenSymbol}` : `${quote || '0'} MON`}
         </span>
       </div>
       {quote && (
