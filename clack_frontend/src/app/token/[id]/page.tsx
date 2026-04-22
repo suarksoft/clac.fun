@@ -17,6 +17,13 @@ import { useDeathClock } from '@/hooks/use-death-clock'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient, createSocketClient } from '@/lib/api/client'
 import { toUiToken, toUiTrade } from '@/lib/api/mappers'
+import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
+import {
+  useAccount,
+  useReadContract,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from 'wagmi'
 
 export default function TokenDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -39,6 +46,11 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
   const isDead = token?.dead || death.isDead
   const [displayPrice, setDisplayPrice] = useState(0)
   const displayMonPrice = displayPrice > 0 ? displayPrice.toExponential(3) : '0.00000000'
+  const { address, isConnected } = useAccount()
+  const { writeContractAsync, data: actionHash, isPending: isActionPending } = useWriteContract()
+  const { isLoading: isActionConfirming } = useWaitForTransactionReceipt({
+    hash: actionHash,
+  })
 
   useEffect(() => {
     if (token) {
@@ -96,6 +108,46 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
+  }
+
+  const claimableQuery = useReadContract({
+    address: CLAC_FACTORY_ADDRESS as `0x${string}`,
+    abi: CLAC_FACTORY_ABI,
+    functionName: 'getClaimable',
+    args: [pageTradeTokenId, (address ?? '0x0000000000000000000000000000000000000000') as `0x${string}`],
+    query: {
+      enabled: isConnected && Boolean(address) && token.dead,
+      refetchInterval: 10_000,
+    },
+  })
+
+  const claimableFromChain = claimableQuery.data
+    ? Number(claimableQuery.data) / 1e18
+    : token.claimableMon
+  const canClaim = token.dead && token.deathProcessed && claimableFromChain > 0
+  const canTriggerDeath = !token.dead && death.isDead
+
+  const handleTriggerDeath = async () => {
+    await writeContractAsync({
+      address: CLAC_FACTORY_ADDRESS as `0x${string}`,
+      abi: CLAC_FACTORY_ABI,
+      functionName: 'triggerDeath',
+      args: [pageTradeTokenId],
+    })
+    await tokenQuery.refetch()
+    await tradesQuery.refetch()
+  }
+
+  const handleClaim = async () => {
+    await writeContractAsync({
+      address: CLAC_FACTORY_ADDRESS as `0x${string}`,
+      abi: CLAC_FACTORY_ABI,
+      functionName: 'claim',
+      args: [pageTradeTokenId],
+    })
+    await tokenQuery.refetch()
+    await tradesQuery.refetch()
+    await claimableQuery.refetch()
   }
 
   if (tokenQuery.isError) {
@@ -305,10 +357,16 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                     <p className="text-sm text-muted-foreground">Veri bekleniyor.</p>
                   </div>
                   <p className="mb-2 text-sm text-foreground">
-                    Your claim: <span className="font-mono text-amber-400">{token.claimableMon.toFixed(4)} MON</span>
+                    Your claim: <span className="font-mono text-amber-400">{claimableFromChain.toFixed(4)} MON</span>
                   </p>
-                  <Button className="w-full bg-amber-500 text-black hover:bg-amber-400">
-                    Claim {token.claimableMon.toFixed(4)} MON
+                  <Button
+                    className="w-full bg-amber-500 text-black hover:bg-amber-400"
+                    onClick={handleClaim}
+                    disabled={!canClaim || isActionPending || isActionConfirming}
+                  >
+                    {isActionPending || isActionConfirming
+                      ? 'Claiming...'
+                      : `Claim ${claimableFromChain.toFixed(4)} MON`}
                   </Button>
                 </div>
               ) : (
@@ -322,6 +380,17 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                     tradesQuery.refetch()
                   }}
                 />
+              )}
+              {canTriggerDeath && (
+                <Button
+                  className="w-full bg-red-500 text-white hover:bg-red-600"
+                  onClick={handleTriggerDeath}
+                  disabled={isActionPending || isActionConfirming}
+                >
+                  {isActionPending || isActionConfirming
+                    ? 'Triggering Clac...'
+                    : 'Trigger Clac 💀'}
+                </Button>
               )}
               <TokenInfoPanel token={token} />
             </aside>

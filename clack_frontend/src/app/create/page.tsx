@@ -15,9 +15,11 @@ import {
   useWriteContract,
 } from 'wagmi'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
-import { formatEther, parseEther } from 'viem'
+import { decodeEventLog, formatEther, parseEther } from 'viem'
 import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
 import { monadTestnet } from '@/lib/web3/chains'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { 
   Zap, 
   Clock, 
@@ -31,9 +33,9 @@ import Image from 'next/image'
 type Duration = '6h' | '12h' | '24h'
 
 const DURATION_SECONDS: Record<Duration, bigint> = {
-  '6h': 6n * 60n * 60n,
-  '12h': 12n * 60n * 60n,
-  '24h': 24n * 60n * 60n,
+  '6h': BigInt(6 * 60 * 60),
+  '12h': BigInt(12 * 60 * 60),
+  '24h': BigInt(24 * 60 * 60),
 }
 
 export default function CreateTokenPage() {
@@ -48,13 +50,19 @@ export default function CreateTokenPage() {
   const [publicCreation, setPublicCreation] = useState<boolean | null>(null)
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null)
   const [isConfigLoading, setIsConfigLoading] = useState(true)
+  const router = useRouter()
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const { switchChain } = useSwitchChain()
   const { openConnectModal } = useConnectModal()
   const publicClient = usePublicClient()
   const { writeContractAsync, data: txHash, isPending } = useWriteContract()
-  const txReceipt = useWaitForTransactionReceipt({ hash: txHash })
+  const {
+    data: txReceipt,
+    isLoading: isConfirming,
+    isSuccess,
+    isError: isReceiptError,
+  } = useWaitForTransactionReceipt({ hash: txHash })
 
   const durations: { value: Duration; label: string; description: string; icon: ReactNode }[] = [
     {
@@ -93,7 +101,7 @@ export default function CreateTokenPage() {
     !isWrongChain &&
     !creationLockedForUser &&
     !isPending &&
-    !txReceipt.isLoading
+    !isConfirming
 
   useEffect(() => {
     if (!publicClient) return
@@ -143,7 +151,24 @@ export default function CreateTokenPage() {
   }, [publicClient])
 
   useEffect(() => {
-    if (txReceipt.isSuccess) {
+    if (isSuccess && txReceipt) {
+      let createdTokenId: string | null = null
+      for (const log of txReceipt.logs) {
+        try {
+          const decoded = decodeEventLog({
+            abi: CLAC_FACTORY_ABI,
+            data: log.data,
+            topics: log.topics,
+          })
+          if (decoded.eventName === 'TokenCreated') {
+            createdTokenId = String(decoded.args.tokenId)
+            break
+          }
+        } catch {
+          // ignore unrelated logs
+        }
+      }
+
       setSuccessText('Token created successfully. It will appear after indexer sync.')
       setErrorText(null)
       setName('')
@@ -151,11 +176,15 @@ export default function CreateTokenPage() {
       setDescription('')
       setImageUrl('')
       setDuration('12h')
-    } else if (txReceipt.isError) {
+      if (createdTokenId) {
+        router.push(`/token/${createdTokenId}`)
+      }
+    } else if (isReceiptError) {
       setSuccessText(null)
       setErrorText('Transaction failed while waiting for confirmation.')
+      toast.error('Transaction failed while waiting for confirmation.')
     }
-  }, [txReceipt.isSuccess, txReceipt.isError])
+  }, [isSuccess, isReceiptError, txReceipt, router])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -196,6 +225,7 @@ export default function CreateTokenPage() {
       setErrorText(
         error instanceof Error ? 'Token creation transaction failed. Please confirm wallet and fee.' : 'Token creation transaction failed.',
       )
+      toast.error('Token creation transaction failed.')
     }
   }
 
@@ -388,9 +418,11 @@ export default function CreateTokenPage() {
                 />
                 {isWrongChain
                   ? 'Switch to Monad Testnet'
-                  : isPending || txReceipt.isLoading
-                  ? 'Snapping...'
-                  : 'Snap Into Existence'}
+                  : isPending
+                  ? 'Waiting for wallet...'
+                  : isConfirming
+                  ? 'Creating token...'
+                  : 'Launch Token 🚀'}
               </Button>
             ) : (
               <Button

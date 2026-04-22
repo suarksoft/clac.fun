@@ -5,6 +5,18 @@ export const CLAC_FACTORY_ADDRESS =
 
 export const CLAC_FACTORY_ABI = [
   {
+    type: 'event',
+    name: 'TokenCreated',
+    inputs: [
+      { indexed: true, name: 'tokenId', type: 'uint256' },
+      { indexed: true, name: 'creator', type: 'address' },
+      { indexed: false, name: 'name', type: 'string' },
+      { indexed: false, name: 'symbol', type: 'string' },
+      { indexed: false, name: 'imageURI', type: 'string' },
+      { indexed: false, name: 'duration', type: 'uint256' },
+    ],
+  },
+  {
     type: 'function',
     stateMutability: 'payable',
     name: 'createToken',

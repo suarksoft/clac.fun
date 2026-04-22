@@ -41,31 +41,35 @@ export function useLiveEvents() {
     })
 
     socket.on('tokenClacced', (payload) => {
+      const liveEvent: LiveEvent = {
+        id: crypto.randomUUID(),
+        type: 'clac',
+        account: payload.triggeredBy || 'system',
+        amount: Number(payload.poolRemaining || 0),
+        tokenSymbol: payload.tokenSymbol || 'CLAC',
+        tokenImage: '/tokens/chad-bull.jpg',
+        time: new Date(),
+      }
+
       setEvents((prev) => [
-        {
-          id: crypto.randomUUID(),
-          type: 'clac',
-          account: payload.triggeredBy || 'system',
-          amount: Number(payload.poolRemaining || 0),
-          tokenSymbol: payload.tokenSymbol || 'CLAC',
-          tokenImage: '/tokens/chad-bull.jpg',
-          time: new Date(),
-        },
+        liveEvent,
         ...prev,
       ].slice(0, 30))
     })
 
     socket.on('lotteryWin', (payload) => {
+      const liveEvent: LiveEvent = {
+        id: crypto.randomUUID(),
+        type: 'lottery',
+        account: payload.winner,
+        amount: Number(payload.amount || 0),
+        tokenSymbol: payload.tokenSymbol || 'CLAC',
+        tokenImage: '/tokens/rocket-cat.jpg',
+        time: new Date(),
+      }
+
       setEvents((prev) => [
-        {
-          id: crypto.randomUUID(),
-          type: 'lottery',
-          account: payload.winner,
-          amount: Number(payload.amount || 0),
-          tokenSymbol: payload.tokenSymbol || 'CLAC',
-          tokenImage: '/tokens/rocket-cat.jpg',
-          time: new Date(),
-        },
+        liveEvent,
         ...prev,
       ].slice(0, 30))
     })

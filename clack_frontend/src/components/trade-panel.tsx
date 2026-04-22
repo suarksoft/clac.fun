@@ -38,7 +38,6 @@ export function TradePanel({
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy')
   const [amount, setAmount] = useState('')
   const [quote, setQuote] = useState<string | null>(null)
-  const [quoteWei, setQuoteWei] = useState<bigint | null>(null)
   const [errorText, setErrorText] = useState<string | null>(null)
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
@@ -49,8 +48,6 @@ export function TradePanel({
   const txReceipt = useWaitForTransactionReceipt({ hash })
   const { data: balanceData } = useBalance({ address })
   const walletMonBalance = Number(balanceData?.formatted || userBalance || 0)
-  const slippageBps = 1000n // 10%
-  const bpsDenominator = 10_000n
   const isWrongChain = isConnected && chainId !== monadTestnet.id
 
   const quickAmounts = [
@@ -77,35 +74,26 @@ export function TradePanel({
   useEffect(() => {
     if (!parsedAmount || !publicClient || isDead) {
       setQuote(null)
-      setQuoteWei(null)
       return
     }
 
     const readQuote = async () => {
       try {
-        if (activeTab === 'buy') {
-          setQuote(amount)
-          setQuoteWei(parsedAmount)
-          return
-        }
-
+        const fn = activeTab === 'buy' ? 'getBuyCost' : 'getSellQuote'
         const result = await publicClient.readContract({
           address: CLAC_FACTORY_ADDRESS as `0x${string}`,
           abi: CLAC_FACTORY_ABI,
-          functionName: 'getSellQuote',
+          functionName: fn,
           args: [tokenId, parsedAmount],
         })
-        const value = result as bigint
-        setQuote(Number(formatEther(value)).toFixed(6))
-        setQuoteWei(value)
+        setQuote(Number(formatEther(result as bigint)).toFixed(6))
       } catch {
         setQuote(null)
-        setQuoteWei(null)
       }
     }
 
     readQuote()
-  }, [activeTab, amount, parsedAmount, publicClient, tokenId, isDead])
+  }, [activeTab, parsedAmount, publicClient, tokenId, isDead])
 
   useEffect(() => {
     if (txReceipt.isSuccess && onTradeSuccess) {
@@ -131,32 +119,19 @@ export function TradePanel({
 
     try {
       if (activeTab === 'buy') {
-        if (!currentPrice || currentPrice <= 0) {
-          setErrorText('Price feed unavailable. Please retry in a few seconds.')
-          return
-        }
-        const estimatedTokens = parseEther(
-          (Math.max(Number(amount), 0) / currentPrice).toFixed(18),
-        )
-        const minTokens = (estimatedTokens * (bpsDenominator - slippageBps)) / bpsDenominator
         await writeContractAsync({
           address: CLAC_FACTORY_ADDRESS as `0x${string}`,
           abi: CLAC_FACTORY_ABI,
           functionName: 'buy',
-          args: [tokenId, minTokens],
+          args: [tokenId, BigInt(0)],
           value: parsedAmount,
         })
       } else {
-        if (!quoteWei || quoteWei <= 0n) {
-          setErrorText('Could not compute sell quote. Try again.')
-          return
-        }
-        const minMon = (quoteWei * (bpsDenominator - slippageBps)) / bpsDenominator
         await writeContractAsync({
           address: CLAC_FACTORY_ADDRESS as `0x${string}`,
           abi: CLAC_FACTORY_ABI,
           functionName: 'sell',
-          args: [tokenId, parsedAmount, minMon],
+          args: [tokenId, parsedAmount, BigInt(0)],
         })
       }
       setAmount('')
@@ -197,7 +172,7 @@ export function TradePanel({
           className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
         >
           <Settings className="h-3.5 w-3.5" />
-          Slippage {(Number(slippageBps) / 100).toFixed(0)}%
+          Slippage Off
         </button>
       </div>
 
