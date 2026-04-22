@@ -18,6 +18,7 @@ import { decodeEventLog, formatEther, parseEther } from 'viem'
 import { toast } from 'sonner'
 import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
 import { monadTestnet } from '@/lib/web3/chains'
+import { publicEnv } from '@/lib/env'
 
 type Duration = '6h' | '12h' | '24h'
 
@@ -50,6 +51,7 @@ export default function AdminPage() {
   const [errorText, setErrorText] = useState<string>('')
   const [isLoadingConfig, setIsLoadingConfig] = useState(true)
   const [isWorking, setIsWorking] = useState(false)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
 
   const isWrongChain = isConnected && chainId !== monadTestnet.id
   const isOwner = Boolean(
@@ -192,10 +194,14 @@ export default function AdminPage() {
         throw new Error('Name, symbol ve image URL zorunlu.')
       }
       const normalizedImageUrl = imageUrl.trim()
-      const isHttpsImage = normalizedImageUrl.startsWith('https://')
-      const isDataImage = normalizedImageUrl.startsWith('data:image/')
-      if (!isHttpsImage && !isDataImage) {
-        throw new Error('Image URL https:// veya data:image/ ile baslamali.')
+      let parsedImageUrl: URL
+      try {
+        parsedImageUrl = new URL(normalizedImageUrl)
+      } catch {
+        throw new Error('Image URL gecersiz.')
+      }
+      if (parsedImageUrl.protocol !== 'https:' && parsedImageUrl.protocol !== 'http:') {
+        throw new Error('Image URL http veya https olmali.')
       }
 
       const previousFee = creationFeeWei
@@ -280,21 +286,39 @@ export default function AdminPage() {
       setErrorText('Lutfen gecerli bir gorsel dosyasi sec.')
       return
     }
+    const formData = new FormData()
+    formData.append('file', file)
+    setIsUploadingImage(true)
+    setErrorText('')
+    setStatusText('Gorsel yukleniyor...')
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result
-      if (typeof result === 'string') {
-        setImageUrl(result)
+    fetch(`${publicEnv.NEXT_PUBLIC_BACKEND_URL}/api/uploads/image`, {
+      method: 'POST',
+      body: formData,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error('Gorsel yukleme basarisiz oldu.')
+        }
+        const data = (await response.json()) as { urlPath?: string }
+        if (!data.urlPath) {
+          throw new Error('Yukleme cevabi gecersiz.')
+        }
+        const uploadedUrl = new URL(data.urlPath, publicEnv.NEXT_PUBLIC_BACKEND_URL).toString()
+        setImageUrl(uploadedUrl)
         setSelectedImageName(file.name)
-        setErrorText('')
-        toast.success('Gorsel yüklendi, create icin hazir.')
-      }
-    }
-    reader.onerror = () => {
-      setErrorText('Gorsel okunamadi. Tekrar dene.')
-    }
-    reader.readAsDataURL(file)
+        setStatusText('Gorsel yuklendi, create icin hazir.')
+        toast.success('Gorsel yuklendi.')
+      })
+      .catch((error) => {
+        const message =
+          error instanceof Error ? error.message : 'Gorsel yukleme hatasi.'
+        setErrorText(message)
+        setStatusText('')
+      })
+      .finally(() => {
+        setIsUploadingImage(false)
+      })
   }
 
   return (
@@ -355,15 +379,16 @@ export default function AdminPage() {
               <Input value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} maxLength={8} />
             </div>
             <div className="space-y-2">
-              <Label>Image URL (https)</Label>
+              <Label>Image URL</Label>
               <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} type="url" />
               <div className="flex flex-wrap items-center gap-2">
                 <label className="inline-flex cursor-pointer items-center rounded-md border border-border px-3 py-2 text-sm hover:bg-secondary">
-                  Fotograf Sec
+                  {isUploadingImage ? 'Yukleniyor...' : 'Fotograf Yukle'}
                   <input
                     type="file"
                     accept="image/*"
                     className="hidden"
+                    disabled={isUploadingImage}
                     onChange={(e) => handleImageFileSelect(e.target.files?.[0] ?? null)}
                   />
                 </label>
@@ -414,7 +439,7 @@ export default function AdminPage() {
                 Cuzdan Bagla
               </Button>
             ) : (
-              <Button type="submit" disabled={isWorking || isPending || !isOwner}>
+              <Button type="submit" disabled={isWorking || isPending || !isOwner || isUploadingImage}>
                 {isWorking || isPending ? 'Calisiyor...' : '0 MON ile Admin Create'}
               </Button>
             )}

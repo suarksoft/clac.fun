@@ -2,10 +2,15 @@ import { NestFactory } from '@nestjs/core';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
+import { join } from 'path';
+import { mkdirSync } from 'fs';
+import express from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const uploadsDir = join(process.cwd(), 'uploads');
+  mkdirSync(uploadsDir, { recursive: true });
 
   app.use(helmet());
   app.useGlobalPipes(
@@ -17,6 +22,7 @@ async function bootstrap() {
     }),
   );
   app.enableCors({ origin: '*' });
+  app.use('/uploads', express.static(uploadsDir));
   app.useWebSocketAdapter(new IoAdapter(app));
   app.setGlobalPrefix('api');
 

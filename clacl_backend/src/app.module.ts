@@ -11,6 +11,7 @@ import { TokensModule } from './tokens/tokens.module';
 import { TradesModule } from './trades/trades.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
+import { UploadsController } from './uploads.controller';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { PortfolioModule } from './portfolio/portfolio.module';
     LeaderboardModule,
     PortfolioModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, UploadsController],
   providers: [
     AppService,
     PrismaService,
