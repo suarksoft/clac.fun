@@ -39,6 +39,7 @@ export default function AdminPage() {
   const [name, setName] = useState('')
   const [symbol, setSymbol] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [selectedImageName, setSelectedImageName] = useState('')
   const [duration, setDuration] = useState<Duration>('12h')
   const [desiredFeeMon, setDesiredFeeMon] = useState('0')
   const [restoreFeeAfterCreate, setRestoreFeeAfterCreate] = useState(true)
@@ -190,8 +191,11 @@ export default function AdminPage() {
       if (!name.trim() || !symbol.trim() || !imageUrl.trim()) {
         throw new Error('Name, symbol ve image URL zorunlu.')
       }
-      if (!imageUrl.trim().startsWith('https://')) {
-        throw new Error('Image URL https:// ile baslamali.')
+      const normalizedImageUrl = imageUrl.trim()
+      const isHttpsImage = normalizedImageUrl.startsWith('https://')
+      const isDataImage = normalizedImageUrl.startsWith('data:image/')
+      if (!isHttpsImage && !isDataImage) {
+        throw new Error('Image URL https:// veya data:image/ ile baslamali.')
       }
 
       const previousFee = creationFeeWei
@@ -219,7 +223,7 @@ export default function AdminPage() {
         address: CLAC_FACTORY_ADDRESS as `0x${string}`,
         abi: CLAC_FACTORY_ABI,
         functionName: 'createToken',
-        args: [name.trim(), symbol.trim().toUpperCase(), imageUrl.trim(), DURATION_SECONDS[duration]],
+        args: [name.trim(), symbol.trim().toUpperCase(), normalizedImageUrl, DURATION_SECONDS[duration]],
         value: BigInt(0),
       })
       const receipt = await publicClient!.waitForTransactionReceipt({ hash: createHash })
@@ -268,6 +272,29 @@ export default function AdminPage() {
     } finally {
       setIsWorking(false)
     }
+  }
+
+  const handleImageFileSelect = (file: File | null) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setErrorText('Lutfen gecerli bir gorsel dosyasi sec.')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result
+      if (typeof result === 'string') {
+        setImageUrl(result)
+        setSelectedImageName(file.name)
+        setErrorText('')
+        toast.success('Gorsel yüklendi, create icin hazir.')
+      }
+    }
+    reader.onerror = () => {
+      setErrorText('Gorsel okunamadi. Tekrar dene.')
+    }
+    reader.readAsDataURL(file)
   }
 
   return (
@@ -330,6 +357,27 @@ export default function AdminPage() {
             <div className="space-y-2">
               <Label>Image URL (https)</Label>
               <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} type="url" />
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex cursor-pointer items-center rounded-md border border-border px-3 py-2 text-sm hover:bg-secondary">
+                  Fotograf Sec
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleImageFileSelect(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                {selectedImageName && (
+                  <span className="text-xs text-muted-foreground">{selectedImageName}</span>
+                )}
+              </div>
+              {imageUrl && (
+                <img
+                  src={imageUrl}
+                  alt="Token preview"
+                  className="h-24 w-24 rounded-md border border-border object-cover"
+                />
+              )}
             </div>
             <div className="space-y-2">
               <Label>Duration</Label>
