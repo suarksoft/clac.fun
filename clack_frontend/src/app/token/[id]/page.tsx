@@ -25,6 +25,20 @@ import {
   useWriteContract,
 } from 'wagmi'
 
+type TradeSocketPayload = {
+  tokenId: number
+  isBuy: boolean
+  trader: string
+  monAmount: string
+  tokenAmount: string
+  newPrice?: string
+  txHash?: string
+}
+
+type TokenClaccedPayload = {
+  tokenId: number
+}
+
 export default function TokenDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const resolvedTokenId = Number(id)
@@ -73,7 +87,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
     const socket = createSocketClient()
     const tokenId = Number(id)
 
-    socket.on('trade', (payload) => {
+    socket.on('trade', (payload: TradeSocketPayload) => {
       if (payload.tokenId !== tokenId) return
 
       const nextTrade: Trade = {
@@ -96,7 +110,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
       }
     })
 
-    socket.on('tokenClacced', (payload) => {
+    socket.on('tokenClacced', (payload: TokenClaccedPayload) => {
       if (payload.tokenId !== tokenId) return
       setDisplayPrice(0)
     })
