@@ -6,12 +6,19 @@ import { Button } from '@/components/ui/button'
 import { Wallet, TrendingUp, TrendingDown, PieChart, History } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import {
+  useAccount,
+  useChainId,
+  useSwitchChain,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from 'wagmi'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api/client'
 import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
 import { formatEther } from 'viem'
+import { monadTestnet } from '@/lib/web3/chains'
 
 function formatUsd(value: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value)
@@ -28,9 +35,12 @@ function formatTimeLeft(createdAt: number, duration: number) {
 
 export default function PortfolioPage() {
   const { address, isConnected } = useAccount()
+  const chainId = useChainId()
+  const { switchChain } = useSwitchChain()
   const { openConnectModal } = useConnectModal()
   const { writeContractAsync, data: claimHash, isPending } = useWriteContract()
   const claimReceipt = useWaitForTransactionReceipt({ hash: claimHash })
+  const isWrongChain = isConnected && chainId !== monadTestnet.id
 
   const portfolioQuery = useQuery({
     queryKey: ['portfolio', address],
@@ -102,13 +112,21 @@ export default function PortfolioPage() {
     trades[0])
 
   const claimToken = async (tokenId: number) => {
-    await writeContractAsync({
-      address: CLAC_FACTORY_ADDRESS as `0x${string}`,
-      abi: CLAC_FACTORY_ABI,
-      functionName: 'claim',
-      args: [BigInt(tokenId)],
-    })
-    portfolioQuery.refetch()
+    if (isWrongChain) {
+      switchChain({ chainId: monadTestnet.id })
+      return
+    }
+    try {
+      await writeContractAsync({
+        address: CLAC_FACTORY_ADDRESS as `0x${string}`,
+        abi: CLAC_FACTORY_ABI,
+        functionName: 'claim',
+        args: [BigInt(tokenId)],
+      })
+      portfolioQuery.refetch()
+    } catch {
+      // keep page stable on wallet rejection or chain errors
+    }
   }
 
   return (
@@ -180,13 +198,18 @@ export default function PortfolioPage() {
                       <td className="px-6 py-4">
                         <Link href={`/token/${holding.id}`} className="flex items-center gap-3 hover:opacity-80">
                           <div className="relative h-10 w-10 overflow-hidden rounded-full">
-                            <Image src={holding.image} alt={holding.name} fill className="object-cover" />
+                            <Image
+                              src={holding.token.imageURI}
+                              alt={holding.token.name}
+                              fill
+                              className="object-cover"
+                            />
                           </div>
                           <div>
                             <span className="mr-2 rounded bg-primary/20 px-1.5 py-0.5 text-xs font-bold text-primary">
-                              {holding.symbol}
+                              {holding.token.symbol}
                             </span>
-                            <span className="font-medium text-foreground">{holding.name}</span>
+                            <span className="font-medium text-foreground">{holding.token.name}</span>
                           </div>
                         </Link>
                       </td>
@@ -226,6 +249,11 @@ export default function PortfolioPage() {
               <h2 className="text-lg font-semibold text-foreground">Claimable</h2>
             </div>
             <div className="space-y-3 p-4">
+              {isWrongChain && (
+                <p className="text-sm text-amber-400">
+                  Wrong network detected. Switch to Monad Testnet before claiming.
+                </p>
+              )}
               {claims.length === 0 && <p className="text-sm text-muted-foreground">No claimable rewards yet.</p>}
               {claims.map((claim) => (
                 <div key={claim.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
@@ -235,7 +263,7 @@ export default function PortfolioPage() {
                   </div>
                   <Button
                     onClick={() => claimToken(claim.tokenId)}
-                    disabled={isPending || claimReceipt.isLoading}
+                    disabled={isPending || claimReceipt.isLoading || isWrongChain}
                     className="bg-amber-500 text-black hover:bg-amber-400"
                   >
                     Claim
@@ -250,6 +278,7 @@ export default function PortfolioPage() {
                       await claimToken(claim.tokenId)
                     }
                   }}
+                  disabled={isWrongChain}
                 >
                   Claim All
                 </Button>

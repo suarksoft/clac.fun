@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:testnet": "hardhat ignition deploy ignition/modules/ClacFactory.ts --network monadTestnet --parameters ignition/parameters/testnet.json",
+    "deploy:mainnet": "hardhat ignition deploy ignition/modules/ClacFactory.ts --network monadMainnet --parameters ignition/parameters/mainnet.json"
   },
   "author": "",
   "license": "ISC",
