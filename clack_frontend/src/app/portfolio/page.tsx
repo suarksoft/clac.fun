@@ -9,15 +9,14 @@ import Link from 'next/link'
 import {
   useAccount,
   useChainId,
+  useConnect,
   useSwitchChain,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from 'wagmi'
-import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api/client'
 import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
-import { formatEther } from 'viem'
 import { monadTestnet } from '@/lib/web3/chains'
 
 function formatUsd(value: number) {
@@ -33,11 +32,19 @@ function formatTimeLeft(createdAt: number, duration: number) {
   return `${h}h ${m}m ${s}s`
 }
 
+function weiToMon(value: string | bigint): number {
+  const wei = typeof value === 'bigint' ? value : BigInt(value || '0')
+  const base = BigInt('1000000000000000000')
+  const whole = wei / base
+  const fractional = wei % base
+  return Number(whole) + Number(fractional) / 1e18
+}
+
 export default function PortfolioPage() {
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const { switchChain } = useSwitchChain()
-  const { openConnectModal } = useConnectModal()
+  const { connect, connectors } = useConnect()
   const { writeContractAsync, data: claimHash, isPending } = useWriteContract()
   const claimReceipt = useWaitForTransactionReceipt({ hash: claimHash })
   const isWrongChain = isConnected && chainId !== monadTestnet.id
@@ -66,7 +73,10 @@ export default function PortfolioPage() {
             </p>
             <Button
               className="gap-2 bg-primary px-8 py-6 text-lg text-primary-foreground hover:bg-primary/90"
-              onClick={() => openConnectModal?.()}
+              onClick={() => {
+                const preferred = connectors[0]
+                if (preferred) connect({ connector: preferred })
+              }}
             >
               <Wallet className="h-5 w-5" />
               Connect
@@ -79,13 +89,13 @@ export default function PortfolioPage() {
 
   const portfolio = portfolioQuery.data
   const holdings = (portfolio?.holdings || []).map((holding) => {
-    const tokenPrice = Number(formatEther(BigInt(holding.token.currentPrice || '0')))
-    const balance = Number(formatEther(BigInt(holding.balance)))
+    const tokenPrice = weiToMon(holding.token.currentPrice || '0')
+    const balance = weiToMon(holding.balance)
     const value = tokenPrice * balance
     const buys = (portfolio?.trades || []).filter((trade) => trade.tokenId === holding.tokenId && trade.isBuy)
     const sells = (portfolio?.trades || []).filter((trade) => trade.tokenId === holding.tokenId && !trade.isBuy)
-    const invested = buys.reduce((sum, trade) => sum + Number(formatEther(BigInt(trade.monAmount))), 0)
-    const realized = sells.reduce((sum, trade) => sum + Number(formatEther(BigInt(trade.monAmount))), 0)
+    const invested = buys.reduce((sum, trade) => sum + weiToMon(trade.monAmount), 0)
+    const realized = sells.reduce((sum, trade) => sum + weiToMon(trade.monAmount), 0)
     const pnl = value + realized - invested
 
     return {
@@ -106,7 +116,7 @@ export default function PortfolioPage() {
   const bestTrade = trades
     .filter((trade) => !trade.isBuy)
     .reduce((best, current) =>
-      Number(formatEther(BigInt(current.monAmount))) > Number(formatEther(BigInt(best?.monAmount || '0')))
+      weiToMon(current.monAmount) > weiToMon(best?.monAmount || '0')
         ? current
         : best,
     trades[0])
@@ -170,7 +180,7 @@ export default function PortfolioPage() {
                 Best Trade (Xx)
               </div>
               <div className="text-3xl font-bold text-foreground">
-                {bestTrade ? `${Math.max(Number(formatEther(BigInt(bestTrade.monAmount))), 1).toFixed(2)}x` : '--'}
+                {bestTrade ? `${Math.max(weiToMon(bestTrade.monAmount), 1).toFixed(2)}x` : '--'}
               </div>
             </div>
           </div>
@@ -259,7 +269,7 @@ export default function PortfolioPage() {
                 <div key={claim.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
                   <div>
                     <p className="font-medium text-foreground">Token #{claim.tokenId}</p>
-                    <p className="font-mono text-sm text-amber-400">{Number(formatEther(BigInt(claim.amount))).toFixed(4)} MON</p>
+                    <p className="font-mono text-sm text-amber-400">{weiToMon(claim.amount).toFixed(4)} MON</p>
                   </div>
                   <Button
                     onClick={() => claimToken(claim.tokenId)}
@@ -310,7 +320,7 @@ export default function PortfolioPage() {
                       </td>
                       <td className="px-6 py-4 text-foreground">{trade.token?.symbol || `#${trade.tokenId}`}</td>
                       <td className="px-6 py-4 font-mono text-foreground">
-                        {Number(formatEther(BigInt(trade.monAmount))).toFixed(4)}
+                        {weiToMon(trade.monAmount).toFixed(4)}
                       </td>
                       <td className="px-6 py-4">
                         <a className="text-primary hover:underline" target="_blank" rel="noreferrer" href={`https://testnet.monadscan.com/tx/${trade.txHash}`}>
