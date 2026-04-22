@@ -5,10 +5,9 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { getAllowedOrigins } from '../config/cors.config';
 
 @WebSocketGateway({
-  cors: { origin: getAllowedOrigins() },
+  cors: { origin: '*' },
   namespace: '/ws',
 })
 export class TokensGateway implements OnGatewayConnection, OnGatewayDisconnect {

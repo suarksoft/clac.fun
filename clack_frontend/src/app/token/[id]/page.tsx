@@ -116,16 +116,16 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
     functionName: 'getClaimable',
     args: [pageTradeTokenId, (address ?? '0x0000000000000000000000000000000000000000') as `0x${string}`],
     query: {
-      enabled: isConnected && Boolean(address) && token.dead,
+      enabled: isConnected && Boolean(address) && Boolean(token?.dead),
       refetchInterval: 10_000,
     },
   })
 
   const claimableFromChain = claimableQuery.data
     ? Number(claimableQuery.data) / 1e18
-    : token.claimableMon
-  const canClaim = token.dead && token.deathProcessed && claimableFromChain > 0
-  const canTriggerDeath = !token.dead && death.isDead
+    : (token?.claimableMon ?? 0)
+  const canClaim = Boolean(token?.dead) && claimableFromChain > 0
+  const canTriggerDeath = !Boolean(token?.dead) && death.isDead
 
   const handleTriggerDeath = async () => {
     await writeContractAsync({

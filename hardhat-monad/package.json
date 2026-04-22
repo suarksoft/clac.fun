@@ -5,8 +5,8 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy:testnet": "hardhat ignition deploy ignition/modules/ClacFactory.ts --network monadTestnet --parameters ignition/parameters/testnet.json",
-    "deploy:mainnet": "hardhat ignition deploy ignition/modules/ClacFactory.ts --network monadMainnet --parameters ignition/parameters/mainnet.json"
+    "deploy:testnet": "hardhat ignition deploy ignition/modules/ClacFactory.ts --network monadTestnet",
+    "deploy:mainnet": "hardhat ignition deploy ignition/modules/ClacFactory.ts --network monadMainnet"
   },
   "author": "",
   "license": "ISC",

@@ -8,8 +8,10 @@ import { TokensGateway } from '../tokens/tokens.gateway';
 @Injectable()
 export class BlockchainService implements OnModuleInit {
   private readonly logger = new Logger(BlockchainService.name);
-  private provider: ethers.WebSocketProvider | null = null;
+  private provider: ethers.Provider | null = null;
   private contract: ethers.Contract | null = null;
+  private isRealtimeWs = false;
+  private pollingTimer: NodeJS.Timeout | null = null;
   private readonly finalityBlocks = Number(
     process.env.MONAD_FINALITY_BLOCKS ?? 3,
   );
@@ -34,13 +36,29 @@ export class BlockchainService implements OnModuleInit {
   }
 
   private async connect() {
-    this.provider = new ethers.WebSocketProvider(activeConfig.wsUrl);
-    this.contract = new ethers.Contract(
-      activeConfig.contractAddress,
-      CLAC_FACTORY_ABI,
-      this.provider,
-    );
-    this.logger.log(`Connected to Monad at ${activeConfig.wsUrl}`);
+    try {
+      this.provider = new ethers.WebSocketProvider(activeConfig.wsUrl);
+      this.contract = new ethers.Contract(
+        activeConfig.contractAddress,
+        CLAC_FACTORY_ABI,
+        this.provider,
+      );
+      this.isRealtimeWs = true;
+      this.logger.log(`Connected to Monad at ${activeConfig.wsUrl}`);
+    } catch (error) {
+      this.logger.warn(
+        `WebSocket connection failed, falling back to RPC polling at ${activeConfig.rpcUrl}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+      this.provider = new ethers.JsonRpcProvider(activeConfig.rpcUrl);
+      this.contract = new ethers.Contract(
+        activeConfig.contractAddress,
+        CLAC_FACTORY_ABI,
+        this.provider,
+      );
+      this.isRealtimeWs = false;
+    }
   }
 
   private getContract() {
@@ -110,6 +128,22 @@ export class BlockchainService implements OnModuleInit {
 
   private listenToEvents() {
     const { contract } = this.getContract();
+    if (!this.isRealtimeWs) {
+      const pollMs = Number(process.env.MONAD_POLL_INTERVAL_MS ?? 15000);
+      this.pollingTimer = setInterval(() => {
+        this.syncPastEvents().catch((error) => {
+          this.logger.error(
+            `Polling sync failed: ${
+              error instanceof Error ? error.message : 'unknown error'
+            }`,
+          );
+        });
+      }, pollMs);
+      this.logger.log(
+        `Listening via polling every ${pollMs}ms using ${activeConfig.rpcUrl}`,
+      );
+      return;
+    }
 
     contract.on('TokenCreated', async (...args: any[]) => {
       const event = args[args.length - 1];

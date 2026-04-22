@@ -3,11 +3,9 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
-import { getAllowedOrigins } from './config/cors.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const allowedOrigins = getAllowedOrigins();
 
   app.use(helmet());
   app.useGlobalPipes(
@@ -18,7 +16,7 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
-  app.enableCors({ origin: allowedOrigins });
+  app.enableCors({ origin: '*' });
   app.useWebSocketAdapter(new IoAdapter(app));
   app.setGlobalPrefix('api');
 

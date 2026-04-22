@@ -106,6 +106,13 @@ export const CLAC_FACTORY_ABI = [
   },
   {
     type: 'function',
+    stateMutability: 'nonpayable',
+    name: 'triggerDeath',
+    inputs: [{ name: 'tokenId', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
     stateMutability: 'view',
     name: 'getClaimable',
     inputs: [
