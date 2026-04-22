@@ -1,11 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Header } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useAccount, usePublicClient, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
+import { formatEther, parseEther } from 'viem'
+import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
 import { 
   Zap, 
   Clock, 
@@ -18,15 +22,31 @@ import Image from 'next/image'
 
 type Duration = '6h' | '12h' | '24h'
 
+const DURATION_SECONDS: Record<Duration, bigint> = {
+  '6h': 6n * 60n * 60n,
+  '12h': 12n * 60n * 60n,
+  '24h': 24n * 60n * 60n,
+}
+
 export default function CreateTokenPage() {
   const [name, setName] = useState('')
   const [symbol, setSymbol] = useState('')
   const [description, setDescription] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [duration, setDuration] = useState<Duration>('12h')
-  const [isConnected] = useState(false)
+  const [errorText, setErrorText] = useState<string | null>(null)
+  const [successText, setSuccessText] = useState<string | null>(null)
+  const [creationFeeWei, setCreationFeeWei] = useState<bigint>(parseEther('10'))
+  const [publicCreation, setPublicCreation] = useState<boolean | null>(null)
+  const [ownerAddress, setOwnerAddress] = useState<string | null>(null)
+  const [isConfigLoading, setIsConfigLoading] = useState(true)
+  const { address, isConnected } = useAccount()
+  const { openConnectModal } = useConnectModal()
+  const publicClient = usePublicClient()
+  const { writeContractAsync, data: txHash, isPending } = useWriteContract()
+  const txReceipt = useWaitForTransactionReceipt({ hash: txHash })
 
-  const durations: { value: Duration; label: string; description: string; icon: React.ReactNode }[] = [
+  const durations: { value: Duration; label: string; description: string; icon: ReactNode }[] = [
     {
       value: '6h',
       label: '6 Hours',
@@ -47,10 +67,114 @@ export default function CreateTokenPage() {
     }
   ]
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const creationFeeDisplay = useMemo(() => Number(formatEther(creationFeeWei)).toFixed(2), [creationFeeWei])
+  const isOwner = Boolean(
+    address &&
+      ownerAddress &&
+      address.toLowerCase() === ownerAddress.toLowerCase(),
+  )
+  const creationLockedForUser = publicCreation === false && !isOwner
+  const canSubmit =
+    Boolean(name.trim()) &&
+    Boolean(symbol.trim()) &&
+    Boolean(imageUrl.trim()) &&
+    !isConfigLoading &&
+    !creationLockedForUser &&
+    !isPending &&
+    !txReceipt.isLoading
+
+  useEffect(() => {
+    if (!publicClient) return
+
+    let cancelled = false
+    const loadCreateConfig = async () => {
+      setIsConfigLoading(true)
+      try {
+        const [fee, isPublic, owner] = await Promise.all([
+          publicClient.readContract({
+            address: CLAC_FACTORY_ADDRESS as `0x${string}`,
+            abi: CLAC_FACTORY_ABI,
+            functionName: 'creationFee',
+          }),
+          publicClient.readContract({
+            address: CLAC_FACTORY_ADDRESS as `0x${string}`,
+            abi: CLAC_FACTORY_ABI,
+            functionName: 'publicCreation',
+          }),
+          publicClient.readContract({
+            address: CLAC_FACTORY_ADDRESS as `0x${string}`,
+            abi: CLAC_FACTORY_ABI,
+            functionName: 'owner',
+          }),
+        ])
+
+        if (!cancelled) {
+          setCreationFeeWei(fee as bigint)
+          setPublicCreation(Boolean(isPublic))
+          setOwnerAddress(String(owner))
+        }
+      } catch {
+        if (!cancelled) {
+          setErrorText('Could not read contract config. Check RPC and contract address.')
+        }
+      } finally {
+        if (!cancelled) {
+          setIsConfigLoading(false)
+        }
+      }
+    }
+
+    loadCreateConfig()
+    return () => {
+      cancelled = true
+    }
+  }, [publicClient])
+
+  useEffect(() => {
+    if (txReceipt.isSuccess) {
+      setSuccessText('Token created successfully. It will appear after indexer sync.')
+      setErrorText(null)
+      setName('')
+      setSymbol('')
+      setDescription('')
+      setImageUrl('')
+      setDuration('12h')
+    } else if (txReceipt.isError) {
+      setSuccessText(null)
+      setErrorText('Transaction failed while waiting for confirmation.')
+    }
+  }, [txReceipt.isSuccess, txReceipt.isError])
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    // Handle form submission
-    console.log({ name, symbol, description, imageUrl, duration })
+    if (!isConnected) {
+      openConnectModal?.()
+      return
+    }
+
+    if (!name.trim() || !symbol.trim() || !imageUrl.trim()) {
+      setErrorText('Name, symbol, and image URL are required.')
+      return
+    }
+
+    if (creationLockedForUser) {
+      setErrorText('Token creation is currently restricted to contract owner.')
+      return
+    }
+
+    setErrorText(null)
+    setSuccessText(null)
+    try {
+      await writeContractAsync({
+        address: CLAC_FACTORY_ADDRESS as `0x${string}`,
+        abi: CLAC_FACTORY_ABI,
+        functionName: 'createToken',
+        args: [name.trim(), symbol.trim().toUpperCase(), imageUrl.trim(), DURATION_SECONDS[duration]],
+        value: creationFeeWei,
+      })
+    } catch (error) {
+      setErrorText(error instanceof Error ? error.message : 'Token creation transaction failed.')
+    }
   }
 
   return (
@@ -193,13 +317,21 @@ export default function CreateTokenPage() {
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Creation Fee</span>
-                <span className="font-mono font-semibold text-foreground">10 MON</span>
+                <span className="font-mono font-semibold text-foreground">
+                  {isConfigLoading ? 'Loading...' : `${creationFeeDisplay} MON`}
+                </span>
               </div>
               <div className="mt-2 flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Initial Liquidity</span>
                 <span className="text-muted-foreground">Provided by bonding curve</span>
               </div>
             </div>
+
+            {publicCreation === false && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-500/90">
+                Public creation is disabled on contract. Only owner can create tokens right now.
+              </div>
+            )}
 
             {/* Warning */}
             <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
@@ -218,7 +350,7 @@ export default function CreateTokenPage() {
               <Button
                 type="submit"
                 className="w-full gap-3 bg-primary py-6 text-lg font-semibold text-primary-foreground hover:bg-primary/90"
-                disabled={!name || !symbol}
+                disabled={!canSubmit}
               >
                 <Image 
                   src="/clac-logo.svg" 
@@ -227,17 +359,25 @@ export default function CreateTokenPage() {
                   height={24}
                   className="h-6 w-6"
                 />
-                Snap Into Existence
+                {isPending || txReceipt.isLoading ? 'Snapping...' : 'Snap Into Existence'}
               </Button>
             ) : (
               <Button
                 type="button"
                 className="w-full gap-3 bg-primary py-6 text-lg font-semibold text-primary-foreground hover:bg-primary/90"
+                onClick={() => openConnectModal?.()}
               >
                 <Wallet className="h-5 w-5" />
                 Connect to Snap
               </Button>
             )}
+            {txHash && (
+              <p className="truncate text-center text-xs text-muted-foreground">
+                Tx: {txHash}
+              </p>
+            )}
+            {successText && <p className="text-center text-xs text-emerald-400">{successText}</p>}
+            {errorText && <p className="text-center text-xs text-red-400">{errorText}</p>}
 
             <p className="text-center text-xs text-muted-foreground">
               By creating a token, you agree to our{' '}

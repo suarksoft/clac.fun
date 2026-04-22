@@ -6,6 +6,39 @@ export const CLAC_FACTORY_ADDRESS =
 export const CLAC_FACTORY_ABI = [
   {
     type: 'function',
+    stateMutability: 'payable',
+    name: 'createToken',
+    inputs: [
+      { name: 'name', type: 'string' },
+      { name: 'symbol', type: 'string' },
+      { name: 'imageURI', type: 'string' },
+      { name: 'duration', type: 'uint256' },
+    ],
+    outputs: [{ name: 'tokenId', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    stateMutability: 'view',
+    name: 'creationFee',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    stateMutability: 'view',
+    name: 'publicCreation',
+    inputs: [],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    type: 'function',
+    stateMutability: 'view',
+    name: 'owner',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+  },
+  {
+    type: 'function',
     stateMutability: 'view',
     name: 'getBuyCost',
     inputs: [

@@ -8,10 +8,12 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "if [ -f dist/src/main.js ]; then node dist/src/main.js; else node dist/main.js; fi",
+    "start:prod": "npm run prisma:push && if [ -f dist/src/main.js ]; then node dist/src/main.js; else node dist/main.js; fi",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
