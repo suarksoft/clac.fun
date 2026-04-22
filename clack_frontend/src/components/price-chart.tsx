@@ -67,6 +67,7 @@ function buildCandlesFromTrades(trades: Trade[], bucketSeconds: number): CandleP
 }
 
 interface PriceChartProps {
+  symbol: string
   currentPrice: number
   priceChange: number
   high: number
@@ -75,7 +76,7 @@ interface PriceChartProps {
   trades: Trade[]
 }
 
-export function PriceChart({ currentPrice, priceChange, high, low, open, trades }: PriceChartProps) {
+export function PriceChart({ symbol, currentPrice, priceChange, high, low, open, trades }: PriceChartProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState('1m')
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
   const isPositive = priceChange >= 0
@@ -201,21 +202,21 @@ export function PriceChart({ currentPrice, priceChange, high, low, open, trades 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div className={`h-2 w-2 rounded-full ${isPositive ? 'bg-emerald-500' : 'bg-red-500'}`} />
-            <span className="text-sm text-muted-foreground">PEPE / USD</span>
+            <span className="text-sm text-muted-foreground">{symbol} / MON</span>
           </div>
           <div className="flex gap-4 text-xs">
             <span className="text-muted-foreground">
-              O <span className="text-emerald-500">{(open / 1000).toFixed(2)}K</span>
+              O <span className="text-emerald-500">{open.toFixed(8)}</span>
             </span>
             <span className="text-muted-foreground">
-              H <span className="text-foreground">{(high / 1000).toFixed(2)}K</span>
+              H <span className="text-foreground">{high.toFixed(8)}</span>
             </span>
             <span className="text-muted-foreground">
-              L <span className="text-foreground">{(low / 1000).toFixed(2)}K</span>
+              L <span className="text-foreground">{low.toFixed(8)}</span>
             </span>
             <span className="text-muted-foreground">
               C <span className={isPositive ? 'text-emerald-500' : 'text-red-500'}>
-                {(currentPrice / 1000).toFixed(2)}K
+                {currentPrice.toFixed(8)}
               </span>
             </span>
             <span className={`font-medium ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>

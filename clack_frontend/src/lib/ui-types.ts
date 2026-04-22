@@ -7,7 +7,10 @@ export interface Token {
   createdAt: Date
   durationSeconds: number
   marketCap: number
+  fdv: number
   price: number
+  virtualSupply: number
+  poolBalanceMon: number
   priceChange24h: number
   volume24h: number
   holders: number

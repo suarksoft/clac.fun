@@ -1,16 +1,19 @@
 'use client'
 
 import type { Token } from '@/lib/ui-types'
-import { formatAddress, formatTimeAgo } from '@/lib/format'
+import { formatAddress, formatNumber, formatTimeAgo } from '@/lib/format'
 import Image from 'next/image'
 import { Copy, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 interface TokenInfoPanelProps {
   token: Token
+  totalTxns: number
+  buyCount: number
+  sellCount: number
 }
 
-export function TokenInfoPanel({ token }: TokenInfoPanelProps) {
+export function TokenInfoPanel({ token, totalTxns, buyCount, sellCount }: TokenInfoPanelProps) {
   const [showOtherInfo, setShowOtherInfo] = useState(true)
   const [mounted, setMounted] = useState(false)
 
@@ -22,8 +25,8 @@ export function TokenInfoPanel({ token }: TokenInfoPanelProps) {
     navigator.clipboard.writeText(text)
   }
 
-  const buys = token.buys
-  const sells = token.sells
+  const buys = buyCount
+  const sells = sellCount
   const totalSide = buys + sells
   const buyRate = totalSide > 0 ? (buys / totalSide) * 100 : 0
 
@@ -33,11 +36,11 @@ export function TokenInfoPanel({ token }: TokenInfoPanelProps) {
         <div className="space-y-2 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Pool Balance</span>
-            <span className="font-mono text-foreground">{token.claimableMon.toFixed(4)} MON</span>
+            <span className="font-mono text-foreground">{token.poolBalanceMon.toFixed(4)} MON</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Total Trades</span>
-            <span className="font-mono text-foreground">{token.txCount}</span>
+            <span className="font-mono text-foreground">{totalTxns}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Death Tax Pool</span>
@@ -76,16 +79,16 @@ export function TokenInfoPanel({ token }: TokenInfoPanelProps) {
 
         <div className="mb-3 grid grid-cols-3 gap-2">
           <div className="rounded-md border border-border bg-secondary/20 p-2">
-            <p className="text-[10px] text-muted-foreground">PRICE USD</p>
-            <p className="font-mono text-xs text-foreground">${token.price.toFixed(4)}</p>
+            <p className="text-[10px] text-muted-foreground">MARKET CAP</p>
+            <p className="font-mono text-xs text-foreground">{formatNumber(token.marketCap)}</p>
           </div>
           <div className="rounded-md border border-border bg-secondary/20 p-2">
             <p className="text-[10px] text-muted-foreground">PRICE MON</p>
-            <p className="font-mono text-xs text-foreground">{token.price.toExponential(4)}</p>
+            <p className="font-mono text-xs text-foreground">{token.price.toFixed(8)} MON</p>
           </div>
           <div className="rounded-md border border-border bg-secondary/20 p-2">
             <p className="text-[10px] text-muted-foreground">FDV</p>
-            <p className="font-mono text-xs text-foreground">${token.marketCap.toFixed(2)}</p>
+            <p className="font-mono text-xs text-foreground">{formatNumber(token.fdv)}</p>
           </div>
         </div>
 
@@ -113,7 +116,7 @@ export function TokenInfoPanel({ token }: TokenInfoPanelProps) {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-muted-foreground">TXNS {token.txCount}</span>
+            <span className="text-muted-foreground">TXNS {totalTxns}</span>
             <span className="text-muted-foreground">
               BUYS <span className="text-emerald-500">{buys}</span> / SELLS <span className="text-red-500">{sells}</span>
             </span>

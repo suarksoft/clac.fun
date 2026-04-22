@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState, useEffect } from 'react'
+import { use, useState, useEffect, useMemo } from 'react'
 import { Header } from '@/components/header'
 import { LiveTicker } from '@/components/live-ticker'
 import { PriceChart } from '@/components/price-chart'
@@ -39,6 +39,14 @@ type TokenClaccedPayload = {
   tokenId: number
 }
 
+function formatTokenPrice(price: number): string {
+  if (!Number.isFinite(price) || price <= 0) return '0'
+  if (price < 0.000001) return price.toExponential(4)
+  if (price < 0.01) return price.toFixed(8)
+  if (price < 1) return price.toFixed(4)
+  return price.toFixed(2)
+}
+
 export default function TokenDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const resolvedTokenId = Number(id)
@@ -59,7 +67,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
   const death = useDeathClock(token?.createdAt ?? new Date(), token?.durationSeconds ?? 1)
   const isDead = token?.dead || death.isDead
   const [displayPrice, setDisplayPrice] = useState(0)
-  const displayMonPrice = displayPrice > 0 ? displayPrice.toExponential(3) : '0.00000000'
+  const displayMonPrice = formatTokenPrice(displayPrice)
   const { address, isConnected } = useAccount()
   const { writeContractAsync, data: actionHash, isPending: isActionPending } = useWriteContract()
   const { isLoading: isActionConfirming } = useWaitForTransactionReceipt({
@@ -140,6 +148,15 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
     : (token?.claimableMon ?? 0)
   const canClaim = Boolean(token?.dead) && claimableFromChain > 0
   const canTriggerDeath = !Boolean(token?.dead) && death.isDead
+  const tradeStats = useMemo(() => {
+    const buyCount = liveTrades.filter((trade) => trade.type === 'buy').length
+    const sellCount = liveTrades.filter((trade) => trade.type === 'sell').length
+    return {
+      totalTxns: liveTrades.length,
+      buyCount,
+      sellCount,
+    }
+  }, [liveTrades])
 
   const handleTriggerDeath = async () => {
     await writeContractAsync({
@@ -268,7 +285,9 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
               </div>
               <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2">
                 <p className="text-[11px] text-muted-foreground">Virtual Liquidity</p>
-                <p className="font-mono text-sm font-semibold text-foreground">10K MON</p>
+                <p className="font-mono text-sm font-semibold text-foreground">
+                  {token.poolBalanceMon.toFixed(4)} MON
+                </p>
               </div>
               <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2">
                 <p className="text-[11px] text-muted-foreground">24h Volume</p>
@@ -338,11 +357,12 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
             <div className="space-y-4">
               <div className="relative">
                 <PriceChart
-                  currentPrice={token.marketCap}
+                  symbol={token.symbol}
+                  currentPrice={displayPrice || token.price}
                   priceChange={token.priceChange24h}
-                  high={token.marketCap * 1.05}
-                  low={token.marketCap * 0.92}
-                  open={token.marketCap * 0.98}
+                  high={Math.max((displayPrice || token.price) * 1.05, displayPrice || token.price)}
+                  low={Math.max((displayPrice || token.price) * 0.92, 0)}
+                  open={(displayPrice || token.price) * 0.98}
                   trades={liveTrades}
                 />
                 {isDead && (
@@ -406,7 +426,12 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                     : 'Trigger Clac 💀'}
                 </Button>
               )}
-              <TokenInfoPanel token={token} />
+              <TokenInfoPanel
+                token={token}
+                totalTxns={tradeStats.totalTxns}
+                buyCount={tradeStats.buyCount}
+                sellCount={tradeStats.sellCount}
+              />
             </aside>
           </div>
         </div>

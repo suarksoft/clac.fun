@@ -337,13 +337,27 @@ export class BlockchainService implements OnModuleInit {
 
     const monFloat = Number(ethers.formatEther(monAmount));
     const priceFloat = Number(ethers.formatEther(newPrice));
+    const supplyFloat = Number(ethers.formatEther(newSupply));
+    let poolBalance = '0';
+    try {
+      const { contract } = this.getContract();
+      const tokenOnChain = await contract.getToken(tokenId);
+      poolBalance = tokenOnChain.poolBalance.toString();
+    } catch (error) {
+      this.logger.warn(
+        `Could not refresh poolBalance for token #${Number(tokenId)}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
 
     await this.prisma.token.update({
       where: { id: Number(tokenId) },
       data: {
         virtualSupply: newSupply.toString(),
         currentPrice: newPrice.toString(),
-        marketCap: priceFloat * Number(newSupply.toString()),
+        poolBalance,
+        marketCap: priceFloat * supplyFloat,
         volume24h: { increment: monFloat },
       },
     });

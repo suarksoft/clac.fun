@@ -4,6 +4,10 @@ import type { BackendHolder, BackendToken, BackendTrade } from './types'
 
 export function toUiToken(token: BackendToken): Token {
   const price = Number(formatEther(BigInt(token.currentPrice || '0')))
+  const virtualSupply = Number(formatEther(BigInt(token.virtualSupply || '0')))
+  const poolBalanceMon = Number(formatEther(BigInt(token.poolBalance || '0')))
+  const marketCap = virtualSupply * price
+  const fdv = 1_000_000_000 * price
   const firstBuy = token.firstBuyPrice ? Number(formatEther(BigInt(token.firstBuyPrice))) : price
   const multiplier = firstBuy > 0 ? price / firstBuy : 0
 
@@ -15,8 +19,11 @@ export function toUiToken(token: BackendToken): Token {
     creator: token.creator,
     createdAt: new Date(token.createdAt * 1000),
     durationSeconds: token.duration,
-    marketCap: token.marketCap || 0,
+    marketCap,
+    fdv,
     price,
+    virtualSupply,
+    poolBalanceMon,
     priceChange24h: token.change24h || 0,
     volume24h: token.volume24h || 0,
     holders: token.totalHolders || 0,

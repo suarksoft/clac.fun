@@ -39,6 +39,7 @@ export function TradePanel({
   const [amount, setAmount] = useState('')
   const [quote, setQuote] = useState<string | null>(null)
   const [errorText, setErrorText] = useState<string | null>(null)
+  const [walletTokenBalance, setWalletTokenBalance] = useState(0)
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const { switchChain } = useSwitchChain()
@@ -50,7 +51,7 @@ export function TradePanel({
   const walletMonBalance = Number(balanceData?.formatted || userBalance || 0)
   const isWrongChain = isConnected && chainId !== monadTestnet.id
 
-  const quickAmounts = [
+  const quickBuyAmounts = [
     { label: 'Reset', value: '', isReset: true },
     { label: '0.5 MON', value: '0.5' },
     { label: '1 MON', value: '1' },
@@ -58,6 +59,7 @@ export function TradePanel({
     { label: '10 MON', value: '10' },
     { label: 'Max', value: 'max', isMax: true },
   ]
+  const quickSellPercents = [25, 50, 75, 100]
 
   const calculatedTokens =
     amount && amount !== 'max' ? (parseFloat(amount) / currentPrice).toFixed(2) : '0'
@@ -94,6 +96,37 @@ export function TradePanel({
 
     readQuote()
   }, [activeTab, parsedAmount, publicClient, tokenId, isDead])
+
+  useEffect(() => {
+    if (!publicClient || !isConnected || !address || activeTab !== 'sell' || isDead) {
+      setWalletTokenBalance(0)
+      return
+    }
+
+    let cancelled = false
+    const readWalletTokenBalance = async () => {
+      try {
+        const balance = await publicClient.readContract({
+          address: CLAC_FACTORY_ADDRESS as `0x${string}`,
+          abi: CLAC_FACTORY_ABI,
+          functionName: 'getBalance',
+          args: [tokenId, address],
+        })
+        if (!cancelled) {
+          setWalletTokenBalance(Number(formatEther(balance as bigint)))
+        }
+      } catch {
+        if (!cancelled) {
+          setWalletTokenBalance(0)
+        }
+      }
+    }
+
+    readWalletTokenBalance()
+    return () => {
+      cancelled = true
+    }
+  }, [publicClient, isConnected, address, activeTab, tokenId, isDead, txReceipt.isSuccess])
 
   useEffect(() => {
     if (txReceipt.isSuccess && onTradeSuccess) {
@@ -140,6 +173,19 @@ export function TradePanel({
     }
   }
 
+  const setSellAmountByPercent = (percent: number) => {
+    if (walletTokenBalance <= 0) {
+      setAmount('')
+      return
+    }
+    if (percent === 100) {
+      setAmount(walletTokenBalance.toFixed(6))
+      return
+    }
+    const value = (walletTokenBalance * percent) / 100
+    setAmount(value.toFixed(6))
+  }
+
   return (
     <div className="relative rounded-xl border border-border bg-card p-3">
       <div className="mb-3 flex rounded-lg border border-border bg-secondary/40 p-1">
@@ -165,7 +211,12 @@ export function TradePanel({
 
       <div className="mb-2 flex items-center justify-between text-[11px]">
         <span className="text-muted-foreground">
-          Balance: <span className="text-foreground">{walletMonBalance.toFixed(4)} MON</span>
+          Balance:{' '}
+          <span className="text-foreground">
+            {activeTab === 'buy'
+              ? `${walletMonBalance.toFixed(4)} MON`
+              : `${walletTokenBalance.toFixed(4)} ${tokenSymbol}`}
+          </span>
         </span>
         <button
           type="button"
@@ -190,24 +241,50 @@ export function TradePanel({
         </div>
       </div>
 
-      <div className="mb-2 grid grid-cols-5 gap-1.5">
-        {quickAmounts.map((qa) => (
+      {activeTab === 'buy' ? (
+        <div className="mb-2 grid grid-cols-5 gap-1.5">
+          {quickBuyAmounts.map((qa) => (
+            <button
+              key={qa.label}
+              onClick={() => setAmount(qa.value)}
+              disabled={isDead}
+              className={`rounded-md border py-1.5 text-[11px] font-medium transition-colors ${
+                qa.isReset
+                  ? 'border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/60'
+                  : qa.isMax
+                  ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                  : 'border-border bg-secondary/30 text-foreground hover:bg-secondary/60'
+              }`}
+            >
+              {qa.isReset ? <RotateCcw className="mx-auto h-3 w-3" /> : qa.label}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="mb-2 grid grid-cols-5 gap-1.5">
           <button
-            key={qa.label}
-            onClick={() => setAmount(qa.value)}
+            onClick={() => setAmount('')}
             disabled={isDead}
-            className={`rounded-md border py-1.5 text-[11px] font-medium transition-colors ${
-              qa.isReset
-                ? 'border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/60'
-                : qa.isMax
-                ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
-                : 'border-border bg-secondary/30 text-foreground hover:bg-secondary/60'
-            }`}
+            className="rounded-md border border-border bg-secondary/30 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary/60"
           >
-            {qa.isReset ? <RotateCcw className="mx-auto h-3 w-3" /> : qa.label}
+            <RotateCcw className="mx-auto h-3 w-3" />
           </button>
-        ))}
-      </div>
+          {quickSellPercents.map((percent) => (
+            <button
+              key={percent}
+              onClick={() => setSellAmountByPercent(percent)}
+              disabled={isDead || walletTokenBalance <= 0}
+              className={`rounded-md border py-1.5 text-[11px] font-medium transition-colors ${
+                percent === 100
+                  ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                  : 'border-border bg-secondary/30 text-foreground hover:bg-secondary/60'
+              }`}
+            >
+              {percent === 100 ? 'Max' : `%${percent}`}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mb-2 flex items-center justify-between text-[11px]">
         <span className="text-muted-foreground">Expected</span>
