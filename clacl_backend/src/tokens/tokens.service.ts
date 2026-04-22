@@ -7,34 +7,41 @@ export type TokenFilter = 'live' | 'dying' | 'dead' | 'new' | 'hot';
 export class TokensService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getAllTokens(filter: TokenFilter = 'live') {
+  async getAllTokens(filter: TokenFilter = 'live', limit = 50) {
     const now = Math.floor(Date.now() / 1000);
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
 
     switch (filter) {
       case 'live':
         return this.prisma.token.findMany({
           where: { dead: false },
           orderBy: { volume24h: 'desc' },
+          take: safeLimit,
         });
 
       case 'dying': {
         const tokens = await this.prisma.token.findMany({
           where: { dead: false },
           orderBy: { createdAt: 'asc' },
+          take: safeLimit * 3,
         });
-        return tokens.filter((token) => token.createdAt + token.duration - now < 3600);
+        return tokens
+          .filter((token) => token.createdAt + token.duration - now < 3600)
+          .slice(0, safeLimit);
       }
 
       case 'dead':
         return this.prisma.token.findMany({
           where: { dead: true },
           orderBy: { indexedAt: 'desc' },
+          take: safeLimit,
         });
 
       case 'new':
         return this.prisma.token.findMany({
           where: { dead: false },
           orderBy: { createdAt: 'desc' },
+          take: safeLimit,
         });
 
       case 'hot':
@@ -42,6 +49,7 @@ export class TokensService {
         return this.prisma.token.findMany({
           where: { dead: false },
           orderBy: { volume24h: 'desc' },
+          take: safeLimit,
         });
     }
   }
@@ -59,11 +67,13 @@ export class TokensService {
   }
 
   async getTradesByToken(tokenId: number, page = 1, limit = 50) {
+    const safePage = Math.max(page, 1);
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
     return this.prisma.trade.findMany({
       where: { tokenId },
       orderBy: { timestamp: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
     });
   }
 
@@ -71,6 +81,7 @@ export class TokensService {
     return this.prisma.holder.findMany({
       where: { tokenId },
       orderBy: { balance: 'desc' },
+      take: 250,
     });
   }
 
@@ -78,6 +89,7 @@ export class TokensService {
     return this.prisma.lotteryWin.findMany({
       where: { tokenId },
       orderBy: { timestamp: 'desc' },
+      take: 100,
     });
   }
 
@@ -90,6 +102,6 @@ export class TokensService {
   }
 
   async getDyingTokens() {
-    return this.getAllTokens('dying');
+    return this.getAllTokens('dying', 50);
   }
 }

@@ -1,19 +1,15 @@
 import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { TokensService } from './tokens.service';
-import type { TokenFilter } from './tokens.service';
-
-const validFilters: TokenFilter[] = ['live', 'dying', 'dead', 'new', 'hot'];
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { TokenListQueryDto } from './dto/token-list-query.dto';
 
 @Controller('tokens')
 export class TokensController {
   constructor(private readonly tokensService: TokensService) {}
 
   @Get()
-  getAllTokens(@Query('filter') filter = 'live') {
-    const safeFilter: TokenFilter = validFilters.includes(filter as TokenFilter)
-      ? (filter as TokenFilter)
-      : 'live';
-    return this.tokensService.getAllTokens(safeFilter);
+  getAllTokens(@Query() query: TokenListQueryDto) {
+    return this.tokensService.getAllTokens(query.filter, query.limit);
   }
 
   @Get('trending')
@@ -34,10 +30,9 @@ export class TokensController {
   @Get(':id/trades')
   getTokenTrades(
     @Param('id', ParseIntPipe) id: number,
-    @Query('page') page = '1',
-    @Query('limit') limit = '50',
+    @Query() query: PaginationQueryDto,
   ) {
-    return this.tokensService.getTradesByToken(id, Number(page), Number(limit));
+    return this.tokensService.getTradesByToken(id, query.page, query.limit);
   }
 
   @Get(':id/holders')

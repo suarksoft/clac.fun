@@ -111,6 +111,7 @@ contract ClacFactory is ReentrancyGuard {
     // ═══════════════════════════════════════════
 
     constructor(address _treasury, uint256 _k) {
+        require(_treasury != address(0), "Invalid treasury");
         owner = msg.sender;
         treasury = _treasury;
         k = _k;

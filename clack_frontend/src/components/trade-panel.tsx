@@ -4,10 +4,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Wallet, Settings, RotateCcw } from 'lucide-react'
-import { useAccount, useBalance, usePublicClient, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import {
+  useAccount,
+  useBalance,
+  useChainId,
+  usePublicClient,
+  useSwitchChain,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from 'wagmi'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { formatEther, parseEther } from 'viem'
 import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
+import { monadTestnet } from '@/lib/web3/chains'
 
 interface TradePanelProps {
   tokenId: bigint
@@ -29,14 +38,20 @@ export function TradePanel({
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy')
   const [amount, setAmount] = useState('')
   const [quote, setQuote] = useState<string | null>(null)
+  const [quoteWei, setQuoteWei] = useState<bigint | null>(null)
   const [errorText, setErrorText] = useState<string | null>(null)
   const { address, isConnected } = useAccount()
+  const chainId = useChainId()
+  const { switchChain } = useSwitchChain()
   const { openConnectModal } = useConnectModal()
   const publicClient = usePublicClient()
   const { data: hash, isPending, writeContractAsync } = useWriteContract()
   const txReceipt = useWaitForTransactionReceipt({ hash })
   const { data: balanceData } = useBalance({ address })
   const walletMonBalance = Number(balanceData?.formatted || userBalance || 0)
+  const slippageBps = 1000n // 10%
+  const bpsDenominator = 10_000n
+  const isWrongChain = isConnected && chainId !== monadTestnet.id
 
   const quickAmounts = [
     { label: 'Reset', value: '', isReset: true },
@@ -62,26 +77,35 @@ export function TradePanel({
   useEffect(() => {
     if (!parsedAmount || !publicClient || isDead) {
       setQuote(null)
+      setQuoteWei(null)
       return
     }
 
     const readQuote = async () => {
       try {
-        const fn = activeTab === 'buy' ? 'getBuyCost' : 'getSellQuote'
+        if (activeTab === 'buy') {
+          setQuote(amount)
+          setQuoteWei(parsedAmount)
+          return
+        }
+
         const result = await publicClient.readContract({
           address: CLAC_FACTORY_ADDRESS as `0x${string}`,
           abi: CLAC_FACTORY_ABI,
-          functionName: fn,
+          functionName: 'getSellQuote',
           args: [tokenId, parsedAmount],
         })
-        setQuote(Number(formatEther(result as bigint)).toFixed(6))
+        const value = result as bigint
+        setQuote(Number(formatEther(value)).toFixed(6))
+        setQuoteWei(value)
       } catch {
         setQuote(null)
+        setQuoteWei(null)
       }
     }
 
     readQuote()
-  }, [activeTab, parsedAmount, publicClient, tokenId, isDead])
+  }, [activeTab, amount, parsedAmount, publicClient, tokenId, isDead])
 
   useEffect(() => {
     if (txReceipt.isSuccess && onTradeSuccess) {
@@ -95,6 +119,10 @@ export function TradePanel({
       openConnectModal?.()
       return
     }
+    if (isWrongChain) {
+      switchChain({ chainId: monadTestnet.id })
+      return
+    }
     if (!parsedAmount) {
       setErrorText('Please enter a valid amount.')
       return
@@ -103,19 +131,32 @@ export function TradePanel({
 
     try {
       if (activeTab === 'buy') {
+        if (!currentPrice || currentPrice <= 0) {
+          setErrorText('Price feed unavailable. Please retry in a few seconds.')
+          return
+        }
+        const estimatedTokens = parseEther(
+          (Math.max(Number(amount), 0) / currentPrice).toFixed(18),
+        )
+        const minTokens = (estimatedTokens * (bpsDenominator - slippageBps)) / bpsDenominator
         await writeContractAsync({
           address: CLAC_FACTORY_ADDRESS as `0x${string}`,
           abi: CLAC_FACTORY_ABI,
           functionName: 'buy',
-          args: [tokenId, 0n],
+          args: [tokenId, minTokens],
           value: parsedAmount,
         })
       } else {
+        if (!quoteWei || quoteWei <= 0n) {
+          setErrorText('Could not compute sell quote. Try again.')
+          return
+        }
+        const minMon = (quoteWei * (bpsDenominator - slippageBps)) / bpsDenominator
         await writeContractAsync({
           address: CLAC_FACTORY_ADDRESS as `0x${string}`,
           abi: CLAC_FACTORY_ABI,
           functionName: 'sell',
-          args: [tokenId, parsedAmount, 0n],
+          args: [tokenId, parsedAmount, minMon],
         })
       }
       setAmount('')
@@ -151,9 +192,12 @@ export function TradePanel({
         <span className="text-muted-foreground">
           Balance: <span className="text-foreground">{walletMonBalance.toFixed(4)} MON</span>
         </span>
-        <button className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground">
+        <button
+          type="button"
+          className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+        >
           <Settings className="h-3.5 w-3.5" />
-          Slippage 10%
+          Slippage {(Number(slippageBps) / 100).toFixed(0)}%
         </button>
       </div>
 
@@ -219,6 +263,8 @@ export function TradePanel({
           ? "💀 THIS TOKEN GOT CLAC'D"
           : !isConnected
           ? 'Connect'
+          : isWrongChain
+          ? 'Switch to Monad Testnet'
           : isPending || txReceipt.isLoading
           ? 'Processing...'
           : activeTab === 'buy'
@@ -230,6 +276,11 @@ export function TradePanel({
       )}
       {errorText && (
         <p className="mt-2 text-center text-xs text-red-400">{errorText}</p>
+      )}
+      {isWrongChain && (
+        <p className="mt-2 text-center text-xs text-amber-400">
+          Wrong network detected. Switch to Monad Testnet to trade.
+        </p>
       )}
       {isDead && (
         <div className="mt-2 text-center text-xs text-red-400">

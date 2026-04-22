@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
+import { publicEnv } from '@/lib/env'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://clac.fun'
+const SITE_URL = publicEnv.NEXT_PUBLIC_SITE_URL
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date()

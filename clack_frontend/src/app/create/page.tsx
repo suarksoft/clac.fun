@@ -6,10 +6,18 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { useAccount, usePublicClient, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
+import {
+  useAccount,
+  useChainId,
+  usePublicClient,
+  useSwitchChain,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from 'wagmi'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { formatEther, parseEther } from 'viem'
 import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
+import { monadTestnet } from '@/lib/web3/chains'
 import { 
   Zap, 
   Clock, 
@@ -41,6 +49,8 @@ export default function CreateTokenPage() {
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null)
   const [isConfigLoading, setIsConfigLoading] = useState(true)
   const { address, isConnected } = useAccount()
+  const chainId = useChainId()
+  const { switchChain } = useSwitchChain()
   const { openConnectModal } = useConnectModal()
   const publicClient = usePublicClient()
   const { writeContractAsync, data: txHash, isPending } = useWriteContract()
@@ -73,12 +83,14 @@ export default function CreateTokenPage() {
       ownerAddress &&
       address.toLowerCase() === ownerAddress.toLowerCase(),
   )
+  const isWrongChain = isConnected && chainId !== monadTestnet.id
   const creationLockedForUser = publicCreation === false && !isOwner
   const canSubmit =
     Boolean(name.trim()) &&
     Boolean(symbol.trim()) &&
     Boolean(imageUrl.trim()) &&
     !isConfigLoading &&
+    !isWrongChain &&
     !creationLockedForUser &&
     !isPending &&
     !txReceipt.isLoading
@@ -151,9 +163,17 @@ export default function CreateTokenPage() {
       openConnectModal?.()
       return
     }
+    if (isWrongChain) {
+      switchChain({ chainId: monadTestnet.id })
+      return
+    }
 
     if (!name.trim() || !symbol.trim() || !imageUrl.trim()) {
       setErrorText('Name, symbol, and image URL are required.')
+      return
+    }
+    if (!imageUrl.trim().startsWith('https://')) {
+      setErrorText('Token image URL must start with https://')
       return
     }
 
@@ -173,7 +193,9 @@ export default function CreateTokenPage() {
         value: creationFeeWei,
       })
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'Token creation transaction failed.')
+      setErrorText(
+        error instanceof Error ? 'Token creation transaction failed. Please confirm wallet and fee.' : 'Token creation transaction failed.',
+      )
     }
   }
 
@@ -332,6 +354,11 @@ export default function CreateTokenPage() {
                 Public creation is disabled on contract. Only owner can create tokens right now.
               </div>
             )}
+            {isWrongChain && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-500/90">
+                Wrong network detected. Switch to Monad Testnet before creating a token.
+              </div>
+            )}
 
             {/* Warning */}
             <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
@@ -359,7 +386,11 @@ export default function CreateTokenPage() {
                   height={24}
                   className="h-6 w-6"
                 />
-                {isPending || txReceipt.isLoading ? 'Snapping...' : 'Snap Into Existence'}
+                {isWrongChain
+                  ? 'Switch to Monad Testnet'
+                  : isPending || txReceipt.isLoading
+                  ? 'Snapping...'
+                  : 'Snap Into Existence'}
               </Button>
             ) : (
               <Button
