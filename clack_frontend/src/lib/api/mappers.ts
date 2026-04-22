@@ -1,6 +1,33 @@
 import { formatEther } from 'viem'
 import type { Token, Trade, LiveEvent } from '@/lib/ui-types'
 import type { BackendHolder, BackendToken, BackendTrade } from './types'
+import { publicEnv } from '@/lib/env'
+
+const FALLBACK_TOKEN_IMAGE = '/tokens/pepe-king.jpg'
+
+export function resolveTokenImageUrl(imageURI?: string): string {
+  const raw = (imageURI || '').trim()
+  if (!raw) return FALLBACK_TOKEN_IMAGE
+
+  if (
+    raw.startsWith('http://') ||
+    raw.startsWith('https://') ||
+    raw.startsWith('data:') ||
+    raw.startsWith('blob:')
+  ) {
+    return raw
+  }
+
+  if (raw.startsWith('/')) {
+    return new URL(raw, publicEnv.NEXT_PUBLIC_BACKEND_URL).toString()
+  }
+
+  if (raw.startsWith('ipfs://')) {
+    return `https://ipfs.io/ipfs/${raw.replace('ipfs://', '')}`
+  }
+
+  return raw
+}
 
 export function toUiToken(token: BackendToken): Token {
   const price = Number(formatEther(BigInt(token.currentPrice || '0')))
@@ -15,7 +42,7 @@ export function toUiToken(token: BackendToken): Token {
     id: String(token.id),
     name: token.name,
     symbol: token.symbol,
-    image: token.imageURI || '/tokens/pepe-king.jpg',
+    image: resolveTokenImageUrl(token.imageURI),
     creator: token.creator,
     createdAt: new Date(token.createdAt * 1000),
     durationSeconds: token.duration,
@@ -45,7 +72,7 @@ export function toUiTrade(trade: BackendTrade): Trade {
     id: String(trade.id),
     tokenId: String(trade.tokenId),
     tokenSymbol: trade.token?.symbol || 'CLAC',
-    tokenImage: trade.token?.imageURI || '/tokens/pepe-king.jpg',
+    tokenImage: resolveTokenImageUrl(trade.token?.imageURI),
     type: trade.isBuy ? 'buy' : 'sell',
     account: trade.trader,
     amount: Number(formatEther(BigInt(trade.monAmount || '0'))),

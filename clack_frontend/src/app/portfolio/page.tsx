@@ -16,6 +16,7 @@ import {
 } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api/client'
+import { resolveTokenImageUrl } from '@/lib/api/mappers'
 import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
 import { monadTestnet } from '@/lib/web3/chains'
 
@@ -209,7 +210,7 @@ export default function PortfolioPage() {
                         <Link href={`/token/${holding.id}`} className="flex items-center gap-3 hover:opacity-80">
                           <div className="relative h-10 w-10 overflow-hidden rounded-full">
                             <Image
-                              src={holding.token.imageURI}
+                              src={resolveTokenImageUrl(holding.token.imageURI)}
                               alt={holding.token.name}
                               fill
                               className="object-cover"
