@@ -16,6 +16,10 @@ export class BlockchainService implements OnModuleInit {
     process.env.MONAD_FINALITY_BLOCKS ?? 3,
   );
   private readonly replayBlocks = Number(process.env.MONAD_REPLAY_BLOCKS ?? 20);
+  private readonly initialBackfillBlocks = Number(
+    process.env.MONAD_INITIAL_BACKFILL_BLOCKS ?? 5000,
+  );
+  private readonly maxLogRange = Number(process.env.MONAD_MAX_LOG_RANGE ?? 100);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -31,7 +35,15 @@ export class BlockchainService implements OnModuleInit {
     }
 
     await this.connect();
-    await this.syncPastEvents();
+    try {
+      await this.syncPastEvents();
+    } catch (error) {
+      this.logger.error(
+        `Initial sync failed, continuing with realtime listener: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
     this.listenToEvents();
   }
 
@@ -73,7 +85,11 @@ export class BlockchainService implements OnModuleInit {
     const syncState = await this.prisma.syncState.findFirst();
     const currentBlock = await provider.getBlockNumber();
     const finalizedBlock = Math.max(currentBlock - this.finalityBlocks, 0);
-    const fromBlock = Math.max((syncState?.lastBlockNumber ?? 0) - this.replayBlocks, 0);
+    const defaultFromBlock = Math.max(finalizedBlock - this.initialBackfillBlocks, 0);
+    const fromBlock = Math.max(
+      (syncState?.lastBlockNumber ?? defaultFromBlock) - this.replayBlocks,
+      0,
+    );
 
     if (fromBlock >= finalizedBlock) {
       this.logger.log(
@@ -84,31 +100,36 @@ export class BlockchainService implements OnModuleInit {
 
     this.logger.log(`Syncing from block ${fromBlock} to ${finalizedBlock}`);
 
-    const chunkSize = 1000;
+    const chunkSize = Math.max(1, Math.min(this.maxLogRange, 100));
     for (let start = fromBlock; start <= finalizedBlock; start += chunkSize) {
       const end = Math.min(start + chunkSize - 1, finalizedBlock);
 
-      const tokenCreatedEvents = await contract.queryFilter(
+      const tokenCreatedEvents = await this.queryFilterSafe(
+        contract,
         contract.filters.TokenCreated(),
         start,
         end,
       );
-      const tradeEvents = await contract.queryFilter(
+      const tradeEvents = await this.queryFilterSafe(
+        contract,
         contract.filters.Trade(),
         start,
         end,
       );
-      const deathEvents = await contract.queryFilter(
+      const deathEvents = await this.queryFilterSafe(
+        contract,
         contract.filters.TokenClacced(),
         start,
         end,
       );
-      const lotteryEvents = await contract.queryFilter(
+      const lotteryEvents = await this.queryFilterSafe(
+        contract,
         contract.filters.LotteryWin(),
         start,
         end,
       );
-      const claimEvents = await contract.queryFilter(
+      const claimEvents = await this.queryFilterSafe(
+        contract,
         contract.filters.Claimed(),
         start,
         end,
@@ -124,6 +145,32 @@ export class BlockchainService implements OnModuleInit {
     }
 
     this.logger.log(`Sync complete at finalized block ${finalizedBlock}`);
+  }
+
+  private async queryFilterSafe(
+    contract: ethers.Contract,
+    filter: any,
+    fromBlock: number,
+    toBlock: number,
+  ) {
+    try {
+      return await contract.queryFilter(filter, fromBlock, toBlock);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isRangeLimitError =
+        message.includes('eth_getLogs is limited') ||
+        message.includes('limited to a') ||
+        message.includes('getLogs');
+
+      if (!isRangeLimitError || fromBlock >= toBlock) {
+        throw error;
+      }
+
+      const mid = Math.floor((fromBlock + toBlock) / 2);
+      const left = await this.queryFilterSafe(contract, filter, fromBlock, mid);
+      const right = await this.queryFilterSafe(contract, filter, mid + 1, toBlock);
+      return [...left, ...right];
+    }
   }
 
   private listenToEvents() {

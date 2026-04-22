@@ -48,3 +48,7 @@ services:
         value: 3
       - key: MONAD_REPLAY_BLOCKS
         value: 20
+      - key: MONAD_INITIAL_BACKFILL_BLOCKS
+        value: 5000
+      - key: MONAD_MAX_LOG_RANGE
+        value: 100
