@@ -80,6 +80,28 @@ export class BlockchainService implements OnModuleInit {
     return { contract: this.contract, provider: this.provider };
   }
 
+  private getEventTxHash(event: any): string | null {
+    const candidates = [
+      event?.transactionHash,
+      event?.log?.transactionHash,
+      event?.transaction?.hash,
+      event?.hash,
+    ];
+    for (const value of candidates) {
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  private getEventBlockNumber(event: any): number | null {
+    const raw = event?.blockNumber ?? event?.log?.blockNumber;
+    if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+    if (typeof raw === 'bigint') return Number(raw);
+    return null;
+  }
+
   private async syncPastEvents() {
     const { contract, provider } = this.getContract();
     const syncState = await this.prisma.syncState.findFirst();
@@ -269,10 +291,24 @@ export class BlockchainService implements OnModuleInit {
       newSupply,
       newPrice,
     } = args;
+    const txHash = this.getEventTxHash(event);
+    const blockNumber = this.getEventBlockNumber(event);
+    if (!txHash) {
+      this.logger.warn(
+        `Skipping trade for token #${Number(tokenId)} because txHash is missing`,
+      );
+      return;
+    }
+    if (blockNumber === null) {
+      this.logger.warn(
+        `Skipping trade for token #${Number(tokenId)} because blockNumber is missing`,
+      );
+      return;
+    }
 
     const normalizedTrader = String(trader).toLowerCase();
     const existing = await this.prisma.trade.findUnique({
-      where: { txHash: event.transactionHash },
+      where: { txHash },
     });
     if (existing) return;
 
@@ -288,8 +324,8 @@ export class BlockchainService implements OnModuleInit {
           creatorFee: creatorFee.toString(),
           newSupply: newSupply.toString(),
           newPrice: newPrice.toString(),
-          txHash: event.transactionHash,
-          blockNumber: Number(event.blockNumber),
+          txHash,
+          blockNumber,
         },
       });
     } catch (error) {
@@ -389,13 +425,13 @@ export class BlockchainService implements OnModuleInit {
       tokenAmount: tokenAmount.toString(),
       monAmount: ethers.formatEther(monAmount),
       newPrice: ethers.formatEther(newPrice),
-      txHash: event.transactionHash,
+      txHash,
     });
 
     this.logger.log(
       `Trade on #${tokenId}: ${Boolean(isBuy) ? 'BUY' : 'SELL'} ${ethers.formatEther(monAmount)} MON`,
     );
-    await this.markSyncedBlock(Number(event.blockNumber));
+    await this.markSyncedBlock(blockNumber);
   }
 
   private async handleDeath(event: any) {
@@ -403,6 +439,13 @@ export class BlockchainService implements OnModuleInit {
     if (!args) return;
 
     const { tokenId, poolRemaining, triggeredBy } = args;
+    const blockNumber = this.getEventBlockNumber(event);
+    if (blockNumber === null) {
+      this.logger.warn(
+        `Skipping death event for token #${Number(tokenId)} because blockNumber is missing`,
+      );
+      return;
+    }
 
     await this.prisma.token.update({
       where: { id: Number(tokenId) },
@@ -422,7 +465,7 @@ export class BlockchainService implements OnModuleInit {
     this.logger.log(
       `Token #${tokenId} CLAC'D! Pool: ${ethers.formatEther(poolRemaining)} MON`,
     );
-    await this.markSyncedBlock(Number(event.blockNumber));
+    await this.markSyncedBlock(blockNumber);
   }
 
   private async handleLottery(event: any) {
@@ -430,10 +473,18 @@ export class BlockchainService implements OnModuleInit {
     if (!args) return;
 
     const { tokenId, winner, amount } = args;
+    const txHash = this.getEventTxHash(event);
+    const blockNumber = this.getEventBlockNumber(event);
+    if (!txHash || blockNumber === null) {
+      this.logger.warn(
+        `Skipping lottery event for token #${Number(tokenId)} due to missing tx metadata`,
+      );
+      return;
+    }
 
     const existingLottery = await this.prisma.lotteryWin.findFirst({
       where: {
-        txHash: event.transactionHash,
+        txHash,
         tokenId: Number(tokenId),
         winner: String(winner).toLowerCase(),
       },
@@ -445,7 +496,7 @@ export class BlockchainService implements OnModuleInit {
         tokenId: Number(tokenId),
         winner: String(winner).toLowerCase(),
         amount: amount.toString(),
-        txHash: event.transactionHash,
+        txHash,
       },
     });
 
@@ -458,7 +509,7 @@ export class BlockchainService implements OnModuleInit {
     this.logger.log(
       `Lottery win on #${tokenId}: ${winner} won ${ethers.formatEther(amount)} MON`,
     );
-    await this.markSyncedBlock(Number(event.blockNumber));
+    await this.markSyncedBlock(blockNumber);
   }
 
   private async handleClaim(event: any) {
@@ -466,10 +517,18 @@ export class BlockchainService implements OnModuleInit {
     if (!args) return;
 
     const { tokenId, holder, amount } = args;
+    const txHash = this.getEventTxHash(event);
+    const blockNumber = this.getEventBlockNumber(event);
+    if (!txHash || blockNumber === null) {
+      this.logger.warn(
+        `Skipping claim event for token #${Number(tokenId)} due to missing tx metadata`,
+      );
+      return;
+    }
 
     const existingClaim = await this.prisma.claim.findFirst({
       where: {
-        txHash: event.transactionHash,
+        txHash,
         tokenId: Number(tokenId),
         holder: String(holder).toLowerCase(),
       },
@@ -481,10 +540,10 @@ export class BlockchainService implements OnModuleInit {
         tokenId: Number(tokenId),
         holder: String(holder).toLowerCase(),
         amount: amount.toString(),
-        txHash: event.transactionHash,
+        txHash,
       },
     });
-    await this.markSyncedBlock(Number(event.blockNumber));
+    await this.markSyncedBlock(blockNumber);
   }
 
   private async markSyncedBlock(lastBlockNumber: number) {
