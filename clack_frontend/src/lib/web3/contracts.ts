@@ -51,6 +51,20 @@ export const CLAC_FACTORY_ABI = [
   },
   {
     type: 'function',
+    stateMutability: 'nonpayable',
+    name: 'setCreationFee',
+    inputs: [{ name: '_fee', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    stateMutability: 'nonpayable',
+    name: 'setPublicCreation',
+    inputs: [{ name: '_public', type: 'bool' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
     stateMutability: 'view',
     name: 'getBuyCost',
     inputs: [
