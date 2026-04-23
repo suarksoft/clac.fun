@@ -24,6 +24,14 @@ const timeframeSeconds: Record<string, number> = {
   '1d': 1440,
 }
 
+function formatPrice(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0'
+  if (value < 0.000001) return value.toExponential(4)
+  if (value < 1) return value.toFixed(8).replace(/0+$/, '').replace(/\.$/, '')
+  if (value < 1000) return value.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
+  return value.toLocaleString('en-US', { maximumFractionDigits: 2 })
+}
+
 function toUnitPrice(trade: Trade): number {
   if (trade.tokenAmount <= 0) return 0
   return trade.amount / trade.tokenAmount
@@ -69,22 +77,46 @@ function buildCandlesFromTrades(trades: Trade[], bucketSeconds: number): CandleP
 interface PriceChartProps {
   symbol: string
   currentPrice: number
-  priceChange: number
-  high: number
-  low: number
-  open: number
   trades: Trade[]
 }
 
-export function PriceChart({ symbol, currentPrice, priceChange, high, low, open, trades }: PriceChartProps) {
+export function PriceChart({ symbol, currentPrice, trades }: PriceChartProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState('1m')
   const chartContainerRef = useRef<HTMLDivElement | null>(null)
-  const isPositive = priceChange >= 0
 
   const seriesData = useMemo(() => {
     const bucketSeconds = (timeframeSeconds[selectedTimeframe] ?? 1) * 60
     return buildCandlesFromTrades(trades, bucketSeconds)
   }, [selectedTimeframe, trades])
+
+  const chartSummary = useMemo(() => {
+    if (seriesData.length === 0) {
+      return {
+        open: currentPrice,
+        high: currentPrice,
+        low: currentPrice,
+        close: currentPrice,
+        priceChangePct: 0,
+        isPositive: true,
+      }
+    }
+
+    const first = seriesData[0]
+    const last = seriesData[seriesData.length - 1]
+    const previous = seriesData.length > 1 ? seriesData[seriesData.length - 2] : null
+    const reference = previous?.close ?? first.open
+    const priceChangePct =
+      reference > 0 ? ((last.close - reference) / reference) * 100 : 0
+
+    return {
+      open: first.open,
+      high: Math.max(...seriesData.map((point) => point.high)),
+      low: Math.min(...seriesData.map((point) => point.low)),
+      close: last.close,
+      priceChangePct,
+      isPositive: priceChangePct >= 0,
+    }
+  }, [seriesData, currentPrice])
 
   const volumeSma = useMemo(() => {
     const last20 = seriesData.slice(-20)
@@ -138,7 +170,7 @@ export function PriceChart({ symbol, currentPrice, priceChange, high, low, open,
       })
 
       const volumeSeries = chart.addSeries(HistogramSeries, {
-        color: isPositive ? 'rgba(34, 197, 94, 0.32)' : 'rgba(239, 68, 68, 0.32)',
+        color: chartSummary.isPositive ? 'rgba(34, 197, 94, 0.32)' : 'rgba(239, 68, 68, 0.32)',
         priceFormat: { type: 'volume' },
         priceScaleId: '',
       })
@@ -193,7 +225,7 @@ export function PriceChart({ symbol, currentPrice, priceChange, high, low, open,
       disposed = true
       cleanup()
     }
-  }, [isPositive, seriesData])
+  }, [chartSummary.isPositive, seriesData])
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
@@ -201,26 +233,26 @@ export function PriceChart({ symbol, currentPrice, priceChange, high, low, open,
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${isPositive ? 'bg-emerald-500' : 'bg-red-500'}`} />
+            <div className={`h-2 w-2 rounded-full ${chartSummary.isPositive ? 'bg-emerald-500' : 'bg-red-500'}`} />
             <span className="text-sm text-muted-foreground">{symbol} / MON</span>
           </div>
           <div className="flex gap-4 text-xs">
             <span className="text-muted-foreground">
-              O <span className="text-emerald-500">{open.toFixed(8)}</span>
+              O <span className="text-emerald-500">{formatPrice(chartSummary.open)}</span>
             </span>
             <span className="text-muted-foreground">
-              H <span className="text-foreground">{high.toFixed(8)}</span>
+              H <span className="text-foreground">{formatPrice(chartSummary.high)}</span>
             </span>
             <span className="text-muted-foreground">
-              L <span className="text-foreground">{low.toFixed(8)}</span>
+              L <span className="text-foreground">{formatPrice(chartSummary.low)}</span>
             </span>
             <span className="text-muted-foreground">
-              C <span className={isPositive ? 'text-emerald-500' : 'text-red-500'}>
-                {currentPrice.toFixed(8)}
+              C <span className={chartSummary.isPositive ? 'text-emerald-500' : 'text-red-500'}>
+                {formatPrice(chartSummary.close)}
               </span>
             </span>
-            <span className={`font-medium ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>
-              {isPositive ? '+' : ''}{priceChange.toFixed(2)}%
+            <span className={`font-medium ${chartSummary.isPositive ? 'text-emerald-500' : 'text-red-500'}`}>
+              {chartSummary.isPositive ? '+' : ''}{chartSummary.priceChangePct.toFixed(2)}%
             </span>
           </div>
         </div>

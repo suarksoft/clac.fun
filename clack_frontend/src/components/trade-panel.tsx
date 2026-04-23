@@ -63,6 +63,12 @@ export function TradePanel({
 
   const calculatedTokens =
     amount && amount !== 'max' ? (parseFloat(amount) / currentPrice).toFixed(2) : '0'
+  const walletMonBalanceText = walletMonBalance.toLocaleString('en-US', {
+    maximumFractionDigits: 4,
+  })
+  const walletTokenBalanceText = walletTokenBalance.toLocaleString('en-US', {
+    maximumFractionDigits: 4,
+  })
 
   const parsedAmount = useMemo(() => {
     const normalized = amount.trim()
@@ -248,8 +254,8 @@ export function TradePanel({
           Balance:{' '}
           <span className="text-foreground">
             {activeTab === 'buy'
-              ? `${walletMonBalance.toFixed(4)} MON`
-              : `${walletTokenBalance.toFixed(4)} ${tokenSymbol}`}
+              ? `${walletMonBalanceText} MON`
+              : `${walletTokenBalanceText} ${tokenSymbol}`}
           </span>
         </span>
         <button

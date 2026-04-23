@@ -12,7 +12,12 @@ async function bootstrap() {
   const uploadsDir = join(process.cwd(), 'uploads');
   mkdirSync(uploadsDir, { recursive: true });
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      // Upload gorselleri frontend tarafinda farkli origin'den de render edilebilsin.
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

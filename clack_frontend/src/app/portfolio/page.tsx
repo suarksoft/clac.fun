@@ -19,6 +19,7 @@ import { apiClient } from '@/lib/api/client'
 import { resolveTokenImageUrl } from '@/lib/api/mappers'
 import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
 import { monadTestnet } from '@/lib/web3/chains'
+import { formatEther } from 'viem'
 
 function formatUsd(value: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value)
@@ -34,11 +35,8 @@ function formatTimeLeft(createdAt: number, duration: number) {
 }
 
 function weiToMon(value: string | bigint): number {
-  const wei = typeof value === 'bigint' ? value : BigInt(value || '0')
-  const base = BigInt('1000000000000000000')
-  const whole = wei / base
-  const fractional = wei % base
-  return Number(whole) + Number(fractional) / 1e18
+  const raw = typeof value === 'bigint' ? value : BigInt(value || '0')
+  return Number(formatEther(raw))
 }
 
 export default function PortfolioPage() {

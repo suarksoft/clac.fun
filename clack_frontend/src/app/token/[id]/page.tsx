@@ -18,6 +18,7 @@ import { useQuery } from '@tanstack/react-query'
 import { apiClient, createSocketClient } from '@/lib/api/client'
 import { toUiToken, toUiTrade } from '@/lib/api/mappers'
 import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
+import { formatEther } from 'viem'
 import {
   useAccount,
   useReadContract,
@@ -107,7 +108,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
         account: payload.trader,
         amount: Number(payload.monAmount || 0),
         value: Number(payload.monAmount || 0),
-        tokenAmount: Number(payload.tokenAmount || 0),
+        tokenAmount: Number(formatEther(BigInt(payload.tokenAmount || '0'))),
         time: new Date(),
         txHash: payload.txHash || '',
       }
@@ -359,10 +360,6 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                 <PriceChart
                   symbol={token.symbol}
                   currentPrice={displayPrice || token.price}
-                  priceChange={token.priceChange24h}
-                  high={Math.max((displayPrice || token.price) * 1.05, displayPrice || token.price)}
-                  low={Math.max((displayPrice || token.price) * 0.92, 0)}
-                  open={(displayPrice || token.price) * 0.98}
                   trades={liveTrades}
                 />
                 {isDead && (
