@@ -12,6 +12,7 @@ import { TradesModule } from './trades/trades.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { UploadsController } from './uploads.controller';
+import { AdminController } from './admin.controller';
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { UploadsController } from './uploads.controller';
     LeaderboardModule,
     PortfolioModule,
   ],
-  controllers: [AppController, UploadsController],
+  controllers: [AppController, UploadsController, AdminController],
   providers: [
     AppService,
     PrismaService,

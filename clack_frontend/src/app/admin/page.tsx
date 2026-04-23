@@ -21,6 +21,14 @@ import { monadTestnet } from '@/lib/web3/chains'
 import { publicEnv } from '@/lib/env'
 
 type Duration = '6h' | '12h' | '24h'
+type AdminTokenRow = {
+  id: number
+  name: string
+  symbol: string
+  imageURI: string
+  dead: boolean
+  createdAt: number
+}
 
 const DURATION_SECONDS: Record<Duration, bigint> = {
   '6h': BigInt(6 * 60 * 60),
@@ -52,6 +60,9 @@ export default function AdminPage() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true)
   const [isWorking, setIsWorking] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [adminTokens, setAdminTokens] = useState<AdminTokenRow[]>([])
+  const [isTokensLoading, setIsTokensLoading] = useState(false)
+  const [deletingTokenId, setDeletingTokenId] = useState<number | null>(null)
 
   const isWrongChain = isConnected && chainId !== monadTestnet.id
   const isOwner = Boolean(
@@ -106,6 +117,10 @@ export default function AdminPage() {
     loadConfig()
   }, [publicClient])
 
+  useEffect(() => {
+    void loadAdminTokens()
+  }, [])
+
   const ensureWalletAndChain = async () => {
     if (!isConnected) {
       const preferredConnector = connectors[0]
@@ -132,6 +147,60 @@ export default function AdminPage() {
   const waitForTx = async (hash: `0x${string}`) => {
     if (!publicClient) return
     await publicClient.waitForTransactionReceipt({ hash })
+  }
+
+  const loadAdminTokens = async () => {
+    setIsTokensLoading(true)
+    try {
+      const response = await fetch(
+        `${publicEnv.NEXT_PUBLIC_BACKEND_URL}/api/admin/tokens?limit=200`,
+      )
+      if (!response.ok) {
+        throw new Error('Token listesi alinamadi.')
+      }
+      const rows = (await response.json()) as AdminTokenRow[]
+      setAdminTokens(rows)
+    } catch (error) {
+      setErrorText(
+        error instanceof Error ? error.message : 'Token listesi alinamadi.',
+      )
+    } finally {
+      setIsTokensLoading(false)
+    }
+  }
+
+  const deleteTokenFromSystem = async (tokenId: number) => {
+    if (!isOwner) {
+      setErrorText('Sadece owner token silebilir.')
+      return
+    }
+    const confirmed = window.confirm(
+      `Token #${tokenId} veritabanindan silinecek. Bu islem geri alinamaz. Devam edilsin mi?`,
+    )
+    if (!confirmed) return
+
+    setDeletingTokenId(tokenId)
+    setErrorText('')
+    setStatusText(`Token #${tokenId} siliniyor...`)
+    try {
+      const response = await fetch(
+        `${publicEnv.NEXT_PUBLIC_BACKEND_URL}/api/admin/tokens/${tokenId}`,
+        { method: 'DELETE' },
+      )
+      if (!response.ok) {
+        throw new Error('Token silme islemi basarisiz.')
+      }
+      await loadAdminTokens()
+      setStatusText(`Token #${tokenId} sistemden silindi.`)
+      toast.success(`Token #${tokenId} silindi.`)
+    } catch (error) {
+      setErrorText(
+        error instanceof Error ? error.message : 'Token silme islemi basarisiz.',
+      )
+      toast.error('Token silinemedi.')
+    } finally {
+      setDeletingTokenId(null)
+    }
   }
 
   const updateCreationFee = async () => {
@@ -446,6 +515,60 @@ export default function AdminPage() {
               </Button>
             )}
           </form>
+
+          <div className="mt-6 rounded-xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Existing Tokens (System)</h2>
+              <Button
+                variant="outline"
+                onClick={() => void loadAdminTokens()}
+                disabled={isTokensLoading || deletingTokenId !== null}
+              >
+                {isTokensLoading ? 'Yenileniyor...' : 'Refresh'}
+              </Button>
+            </div>
+            {adminTokens.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {isTokensLoading ? 'Tokenlar yukleniyor...' : 'Token bulunamadi.'}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {adminTokens.map((row) => (
+                  <div
+                    key={row.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground">
+                        #{row.id} {row.symbol} - {row.name}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {row.imageURI}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`rounded px-2 py-1 text-xs ${
+                          row.dead
+                            ? 'bg-red-500/15 text-red-400'
+                            : 'bg-emerald-500/15 text-emerald-400'
+                        }`}
+                      >
+                        {row.dead ? 'dead' : 'live'}
+                      </span>
+                      <Button
+                        variant="destructive"
+                        onClick={() => void deleteTokenFromSystem(row.id)}
+                        disabled={!isOwner || deletingTokenId === row.id}
+                      >
+                        {deletingTokenId === row.id ? 'Siliniyor...' : 'Sistemden Sil'}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {statusText && (
             <p className="mt-4 rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-400">

@@ -10,16 +10,8 @@ export function resolveTokenImageUrl(imageURI?: string): string {
   if (!raw) return FALLBACK_TOKEN_IMAGE
 
   if (raw.startsWith('http://') || raw.startsWith('https://')) {
-    try {
-      const imageUrl = new URL(raw)
-      const backendUrl = new URL(publicEnv.NEXT_PUBLIC_BACKEND_URL)
-      if (imageUrl.pathname.startsWith('/uploads/') && imageUrl.host !== backendUrl.host) {
-        return new URL(imageUrl.pathname, backendUrl).toString()
-      }
-      return raw
-    } catch {
-      return raw
-    }
+    // Absolute URL values stored on-chain should be respected as-is.
+    return raw
   }
 
   if (raw.startsWith('data:') || raw.startsWith('blob:')) {
