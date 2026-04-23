@@ -13,6 +13,7 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { UploadsController } from './uploads.controller';
 import { AdminController } from './admin.controller';
+import { AdminPasswordGuard } from './common/guards/admin-password.guard';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AdminController } from './admin.controller';
   providers: [
     AppService,
     PrismaService,
+    AdminPasswordGuard,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

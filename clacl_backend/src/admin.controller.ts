@@ -6,12 +6,15 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { PrismaService } from './prisma/prisma.service';
 import { unlink } from 'fs/promises';
 import { basename } from 'path';
+import { AdminPasswordGuard } from './common/guards/admin-password.guard';
 
 @Controller('admin')
+@UseGuards(AdminPasswordGuard)
 export class AdminController {
   constructor(private readonly prisma: PrismaService) {}
 

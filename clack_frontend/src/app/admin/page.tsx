@@ -35,6 +35,7 @@ const DURATION_SECONDS: Record<Duration, bigint> = {
   '12h': BigInt(12 * 60 * 60),
   '24h': BigInt(24 * 60 * 60),
 }
+const ADMIN_PASSWORD_STORAGE_KEY = 'clac_admin_password'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -63,6 +64,10 @@ export default function AdminPage() {
   const [adminTokens, setAdminTokens] = useState<AdminTokenRow[]>([])
   const [isTokensLoading, setIsTokensLoading] = useState(false)
   const [deletingTokenId, setDeletingTokenId] = useState<number | null>(null)
+  const [adminPasswordInput, setAdminPasswordInput] = useState('')
+  const [adminPassword, setAdminPassword] = useState('')
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false)
+  const [isAuthChecking, setIsAuthChecking] = useState(false)
 
   const isWrongChain = isConnected && chainId !== monadTestnet.id
   const isOwner = Boolean(
@@ -75,6 +80,25 @@ export default function AdminPage() {
     () => Number(formatEther(creationFeeWei)).toFixed(4),
     [creationFeeWei],
   )
+  const adminHeaders = useMemo(
+    () =>
+      adminPassword
+        ? ({
+            'x-admin-password': adminPassword,
+          } as HeadersInit)
+        : ({} as HeadersInit),
+    [adminPassword],
+  )
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const storedPassword = sessionStorage.getItem(ADMIN_PASSWORD_STORAGE_KEY) || ''
+    if (storedPassword) {
+      setAdminPassword(storedPassword)
+      setAdminPasswordInput(storedPassword)
+      setIsAdminUnlocked(true)
+    }
+  }, [])
 
   const loadConfig = async () => {
     if (!publicClient) return
@@ -118,8 +142,9 @@ export default function AdminPage() {
   }, [publicClient])
 
   useEffect(() => {
+    if (!isAdminUnlocked || !adminPassword) return
     void loadAdminTokens()
-  }, [])
+  }, [isAdminUnlocked, adminPassword])
 
   const ensureWalletAndChain = async () => {
     if (!isConnected) {
@@ -154,6 +179,9 @@ export default function AdminPage() {
     try {
       const response = await fetch(
         `${publicEnv.NEXT_PUBLIC_BACKEND_URL}/api/admin/tokens?limit=200`,
+        {
+          headers: adminHeaders,
+        },
       )
       if (!response.ok) {
         throw new Error('Token listesi alinamadi.')
@@ -185,7 +213,7 @@ export default function AdminPage() {
     try {
       const response = await fetch(
         `${publicEnv.NEXT_PUBLIC_BACKEND_URL}/api/admin/tokens/${tokenId}`,
-        { method: 'DELETE' },
+        { method: 'DELETE', headers: adminHeaders },
       )
       if (!response.ok) {
         throw new Error('Token silme islemi basarisiz.')
@@ -200,6 +228,46 @@ export default function AdminPage() {
       toast.error('Token silinemedi.')
     } finally {
       setDeletingTokenId(null)
+    }
+  }
+
+  const unlockAdminPanel = async () => {
+    const password = adminPasswordInput.trim()
+    if (!password) {
+      setErrorText('Admin sifresi zorunlu.')
+      return
+    }
+
+    setIsAuthChecking(true)
+    setErrorText('')
+    try {
+      const response = await fetch(
+        `${publicEnv.NEXT_PUBLIC_BACKEND_URL}/api/admin/tokens?limit=1`,
+        {
+          headers: {
+            'x-admin-password': password,
+          },
+        },
+      )
+      if (!response.ok) {
+        throw new Error('Sifre hatali veya admin endpointine erisim yok.')
+      }
+
+      setAdminPassword(password)
+      setIsAdminUnlocked(true)
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(ADMIN_PASSWORD_STORAGE_KEY, password)
+      }
+      setStatusText('Admin panel kilidi acildi.')
+      toast.success('Admin girisi basarili.')
+    } catch (error) {
+      setErrorText(
+        error instanceof Error ? error.message : 'Admin girisi basarisiz.',
+      )
+      setIsAdminUnlocked(false)
+      setAdminPassword('')
+    } finally {
+      setIsAuthChecking(false)
     }
   }
 
@@ -363,6 +431,7 @@ export default function AdminPage() {
 
     fetch(`${publicEnv.NEXT_PUBLIC_BACKEND_URL}/api/uploads/image`, {
       method: 'POST',
+      headers: adminHeaders,
       body: formData,
     })
       .then(async (response) => {
@@ -390,6 +459,40 @@ export default function AdminPage() {
       .finally(() => {
         setIsUploadingImage(false)
       })
+  }
+
+  if (!isAdminUnlocked) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex-1">
+          <div className="container mx-auto flex max-w-md flex-col gap-4 px-4 py-12">
+            <h1 className="text-3xl font-bold text-foreground">Admin Login</h1>
+            <p className="text-sm text-muted-foreground">
+              Admin paneline girmek icin sifreyi gir.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="admin-password">Sifre</Label>
+              <Input
+                id="admin-password"
+                type="password"
+                value={adminPasswordInput}
+                onChange={(e) => setAdminPasswordInput(e.target.value)}
+                placeholder="Admin sifresi"
+              />
+            </div>
+            <Button onClick={() => void unlockAdminPanel()} disabled={isAuthChecking}>
+              {isAuthChecking ? 'Kontrol ediliyor...' : 'Admin Girisi Yap'}
+            </Button>
+            {errorText && (
+              <p className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-400">
+                {errorText}
+              </p>
+            )}
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (

@@ -4,6 +4,7 @@ import {
   Post,
   Req,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -11,6 +12,7 @@ import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { mkdirSync } from 'fs';
 import type { Request } from 'express';
+import { AdminPasswordGuard } from './common/guards/admin-password.guard';
 
 const uploadDir = join(process.cwd(), 'uploads');
 mkdirSync(uploadDir, { recursive: true });
@@ -28,6 +30,7 @@ const imageFileFilter = (
 };
 
 @Controller('uploads')
+@UseGuards(AdminPasswordGuard)
 export class UploadsController {
   @Post('image')
   @UseInterceptors(
