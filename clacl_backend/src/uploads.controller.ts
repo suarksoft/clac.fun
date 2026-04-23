@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   Post,
+  Req,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { mkdirSync } from 'fs';
+import type { Request } from 'express';
 
 const uploadDir = join(process.cwd(), 'uploads');
 mkdirSync(uploadDir, { recursive: true });
@@ -46,14 +48,23 @@ export class UploadsController {
     }),
   )
   uploadImage(
+    @Req() req: Request,
     @UploadedFile() file: { filename: string } | undefined,
   ) {
     if (!file) {
       throw new BadRequestException('Image file is required');
     }
 
+    const forwardedProto = String(req.headers['x-forwarded-proto'] || '')
+      .split(',')[0]
+      .trim();
+    const protocol = forwardedProto || req.protocol || 'https';
+    const host = req.get('host') || '';
+    const urlPath = `/uploads/${file.filename}`;
+
     return {
-      urlPath: `/uploads/${file.filename}`,
+      urlPath,
+      url: `${protocol}://${host}${urlPath}`,
     };
   }
 }

@@ -9,12 +9,20 @@ export function resolveTokenImageUrl(imageURI?: string): string {
   const raw = (imageURI || '').trim()
   if (!raw) return FALLBACK_TOKEN_IMAGE
 
-  if (
-    raw.startsWith('http://') ||
-    raw.startsWith('https://') ||
-    raw.startsWith('data:') ||
-    raw.startsWith('blob:')
-  ) {
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    try {
+      const imageUrl = new URL(raw)
+      const backendUrl = new URL(publicEnv.NEXT_PUBLIC_BACKEND_URL)
+      if (imageUrl.pathname.startsWith('/uploads/') && imageUrl.host !== backendUrl.host) {
+        return new URL(imageUrl.pathname, backendUrl).toString()
+      }
+      return raw
+    } catch {
+      return raw
+    }
+  }
+
+  if (raw.startsWith('data:') || raw.startsWith('blob:')) {
     return raw
   }
 

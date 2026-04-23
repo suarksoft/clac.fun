@@ -300,11 +300,13 @@ export default function AdminPage() {
         if (!response.ok) {
           throw new Error('Gorsel yukleme basarisiz oldu.')
         }
-        const data = (await response.json()) as { urlPath?: string }
-        if (!data.urlPath) {
+        const data = (await response.json()) as { urlPath?: string; url?: string }
+        if (!data.urlPath && !data.url) {
           throw new Error('Yukleme cevabi gecersiz.')
         }
-        const uploadedUrl = new URL(data.urlPath, publicEnv.NEXT_PUBLIC_BACKEND_URL).toString()
+        const uploadedUrl = data.url
+          ? data.url
+          : new URL(data.urlPath as string, publicEnv.NEXT_PUBLIC_BACKEND_URL).toString()
         setImageUrl(uploadedUrl)
         setSelectedImageName(file.name)
         setStatusText('Gorsel yuklendi, create icin hazir.')
