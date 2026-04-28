@@ -11,9 +11,9 @@ import { TokensModule } from './tokens/tokens.module';
 import { TradesModule } from './trades/trades.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
-import { UploadsController } from './uploads.controller';
 import { AdminController } from './admin.controller';
 import { AdminPasswordGuard } from './common/guards/admin-password.guard';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -30,8 +30,9 @@ import { AdminPasswordGuard } from './common/guards/admin-password.guard';
     TradesModule,
     LeaderboardModule,
     PortfolioModule,
+    UploadModule,
   ],
-  controllers: [AppController, UploadsController, AdminController],
+  controllers: [AppController, AdminController],
   providers: [
     AppService,
     PrismaService,

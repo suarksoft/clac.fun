@@ -429,22 +429,19 @@ export default function AdminPage() {
     setErrorText('')
     setStatusText('Gorsel yukleniyor...')
 
-    fetch(`${publicEnv.NEXT_PUBLIC_BACKEND_URL}/api/uploads/image`, {
+    fetch(`${publicEnv.NEXT_PUBLIC_BACKEND_URL}/api/upload/image`, {
       method: 'POST',
-      headers: adminHeaders,
       body: formData,
     })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error('Gorsel yukleme basarisiz oldu.')
         }
-        const data = (await response.json()) as { urlPath?: string; url?: string }
-        if (!data.urlPath && !data.url) {
+        const data = (await response.json()) as { url?: string }
+        if (!data.url) {
           throw new Error('Yukleme cevabi gecersiz.')
         }
         const uploadedUrl = data.url
-          ? data.url
-          : new URL(data.urlPath as string, publicEnv.NEXT_PUBLIC_BACKEND_URL).toString()
         setImageUrl(uploadedUrl)
         setSelectedImageName(file.name)
         setStatusText('Gorsel yuklendi, create icin hazir.')

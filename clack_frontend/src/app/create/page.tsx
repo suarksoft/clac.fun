@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { Header } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,14 +16,19 @@ import {
 import { decodeEventLog, parseEther } from 'viem'
 import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
 import { monadTestnet } from '@/lib/web3/chains'
+import { publicEnv } from '@/lib/env'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function CreateTokenPage() {
   const [tokenName, setTokenName] = useState('')
   const [tokenSymbol, setTokenSymbol] = useState('')
   const [imageURI, setImageURI] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
   const [selectedDuration, setSelectedDuration] = useState(21600)
   const [newTokenId, setNewTokenId] = useState<string | null>(null)
 
@@ -75,6 +80,14 @@ export default function CreateTokenPage() {
       isDurationValid,
     [tokenName, tokenSymbol, isDurationValid],
   )
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview)
+      }
+    }
+  }, [imagePreview])
 
   useEffect(() => {
     if (!receipt || !isSuccess) return
@@ -132,7 +145,26 @@ export default function CreateTokenPage() {
     toast.error('Transaction failed. Please try again.')
   }, [error])
 
-  const handleCreate = () => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Max file size is 5MB')
+      return
+    }
+    if (!/^image\/(jpeg|jpg|png|gif|webp)$/i.test(file.type)) {
+      toast.error('Only JPEG, PNG, GIF, or WEBP images are allowed')
+      return
+    }
+    setImageFile(file)
+    setImageURI('')
+    setImagePreview((prev) => {
+      if (prev.startsWith('blob:')) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
+  }
+
+  const handleCreate = async () => {
     if (!tokenName.trim() || !tokenSymbol.trim()) {
       toast.error('Token name and symbol are required')
       return
@@ -154,6 +186,51 @@ export default function CreateTokenPage() {
       return
     }
 
+    let finalImageURI = imageURI.trim()
+
+    if (imageFile) {
+      setIsUploading(true)
+      try {
+        const formData = new FormData()
+        formData.append('file', imageFile)
+        const res = await fetch(
+          `${publicEnv.NEXT_PUBLIC_BACKEND_URL}/api/upload/image`,
+          { method: 'POST', body: formData },
+        )
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '')
+          throw new Error(errText || `Upload failed (${res.status})`)
+        }
+        const data = (await res.json()) as { url?: string }
+        if (!data.url) throw new Error('Invalid upload response')
+        finalImageURI = data.url
+      } catch {
+        toast.error('Image upload failed. Check backend Cloudinary config.')
+        setIsUploading(false)
+        return
+      }
+      setIsUploading(false)
+    } else if (finalImageURI && /^https?:\/\//i.test(finalImageURI)) {
+      setIsUploading(true)
+      try {
+        const res = await fetch(
+          `${publicEnv.NEXT_PUBLIC_BACKEND_URL}/api/upload/image-url`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: finalImageURI }),
+          },
+        )
+        if (res.ok) {
+          const data = (await res.json()) as { url?: string }
+          if (data.url) finalImageURI = data.url
+        }
+      } catch {
+        // Keep original remote URL if mirror fails
+      }
+      setIsUploading(false)
+    }
+
     writeContract({
       address: CLAC_FACTORY_ADDRESS as `0x${string}`,
       abi: CLAC_FACTORY_ABI,
@@ -161,7 +238,7 @@ export default function CreateTokenPage() {
       args: [
         tokenName.trim(),
         tokenSymbol.trim().toUpperCase(),
-        imageURI.trim() || '',
+        finalImageURI || '',
         BigInt(selectedDuration),
       ],
       value: parseEther('10'),
@@ -211,19 +288,55 @@ export default function CreateTokenPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="token-image" className="text-zinc-200">
-                Token Image (optional)
-              </Label>
+              <Label className="text-zinc-200">Token Image</Label>
+              <button
+                type="button"
+                onClick={() => document.getElementById('imageInput')?.click()}
+                className="w-full cursor-pointer rounded-xl border-2 border-dashed border-zinc-700 p-6 text-center transition-colors hover:border-violet-500"
+              >
+                {imagePreview ? (
+                  <Image
+                    src={imagePreview}
+                    alt="Preview"
+                    width={96}
+                    height={96}
+                    unoptimized
+                    className="mx-auto mb-2 rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="text-zinc-500">
+                    <span className="text-3xl">📷</span>
+                    <p className="mt-2 text-sm">Click to upload image</p>
+                    <p className="text-xs">PNG, JPG, GIF, WEBP — Max 5MB</p>
+                  </div>
+                )}
+              </button>
+              <input
+                id="imageInput"
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <p className="text-center text-xs text-zinc-500">— or paste URL —</p>
               <Input
                 id="token-image"
                 type="text"
                 value={imageURI}
-                onChange={(e) => setImageURI(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setImageURI(v)
+                  setImageFile(null)
+                  setImagePreview((prev) => {
+                    if (prev.startsWith('blob:')) URL.revokeObjectURL(prev)
+                    return v.trim().startsWith('http') ? v.trim() : ''
+                  })
+                }}
                 placeholder="https://example.com/image.png"
                 className="border-zinc-700 bg-zinc-900 text-white"
               />
               <p className="text-xs text-zinc-500">
-                Paste an image URL. Leave empty for default.
+                Optional. Remote URLs are copied to Cloudinary when possible.
               </p>
             </div>
 
@@ -274,11 +387,11 @@ export default function CreateTokenPage() {
 
             {isConnected && !isPending && !isConfirming && !isSuccess && (
               <Button
-                onClick={handleCreate}
-                disabled={!isFormValid || isWrongChain}
+                onClick={() => void handleCreate()}
+                disabled={!isFormValid || isWrongChain || isUploading}
                 className="w-full bg-violet-600 py-6 text-base text-white hover:bg-violet-500 disabled:opacity-50"
               >
-                🚀 Launch Token (10 MON)
+                {isUploading ? '📤 Uploading image...' : '🚀 Launch Token (10 MON)'}
               </Button>
             )}
 

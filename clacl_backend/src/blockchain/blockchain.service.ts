@@ -251,20 +251,21 @@ export class BlockchainService implements OnModuleInit {
 
     const { tokenId, creator, name, symbol, imageURI, duration } = args;
     const block = await event.getBlock();
-
-    await this.prisma.token.upsert({
-      where: { id: Number(tokenId) },
-      create: {
-        id: Number(tokenId),
-        creator,
-        name,
-        symbol,
-        imageURI,
-        createdAt: Number(block.timestamp),
-        duration: Number(duration),
-      },
-      update: {},
-    });
+    const id = Number(tokenId);
+    const exists = await this.prisma.token.findUnique({ where: { id } });
+    if (!exists) {
+      await this.prisma.token.create({
+        data: {
+          id,
+          creator,
+          name,
+          symbol,
+          imageURI,
+          createdAt: Number(block.timestamp),
+          duration: Number(duration),
+        },
+      });
+    }
 
     this.tokensGateway.emitTokenCreated({
       tokenId: Number(tokenId),
