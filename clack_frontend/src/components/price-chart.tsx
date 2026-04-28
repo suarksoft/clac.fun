@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { UTCTimestamp } from 'lightweight-charts'
 import type { Trade } from '@/lib/ui-types'
+import { formatTokenPrice } from '@/lib/format'
 
 type CandlePoint = {
   time: UTCTimestamp
@@ -22,14 +23,6 @@ const timeframeSeconds: Record<string, number> = {
   '1h': 60,
   '4h': 240,
   '1d': 1440,
-}
-
-function formatPrice(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return '0'
-  if (value < 0.000001) return value.toExponential(4)
-  if (value < 1) return value.toFixed(8).replace(/0+$/, '').replace(/\.$/, '')
-  if (value < 1000) return value.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
-  return value.toLocaleString('en-US', { maximumFractionDigits: 2 })
 }
 
 function toUnitPrice(trade: Trade): number {
@@ -238,17 +231,17 @@ export function PriceChart({ symbol, currentPrice, trades }: PriceChartProps) {
           </div>
           <div className="flex gap-4 text-xs">
             <span className="text-muted-foreground">
-              O <span className="text-emerald-500">{formatPrice(chartSummary.open)}</span>
+              O <span className="text-emerald-500">{formatTokenPrice(chartSummary.open)}</span>
             </span>
             <span className="text-muted-foreground">
-              H <span className="text-foreground">{formatPrice(chartSummary.high)}</span>
+              H <span className="text-foreground">{formatTokenPrice(chartSummary.high)}</span>
             </span>
             <span className="text-muted-foreground">
-              L <span className="text-foreground">{formatPrice(chartSummary.low)}</span>
+              L <span className="text-foreground">{formatTokenPrice(chartSummary.low)}</span>
             </span>
             <span className="text-muted-foreground">
               C <span className={chartSummary.isPositive ? 'text-emerald-500' : 'text-red-500'}>
-                {formatPrice(chartSummary.close)}
+                {formatTokenPrice(chartSummary.close)}
               </span>
             </span>
             <span className={`font-medium ${chartSummary.isPositive ? 'text-emerald-500' : 'text-red-500'}`}>

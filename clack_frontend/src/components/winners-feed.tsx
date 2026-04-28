@@ -25,7 +25,11 @@ export function WinnersFeed() {
           {loopItems.map((item, index) => (
             <div
               key={`${item.txHash}-${index}`}
-              className="min-w-[148px] shrink-0 rounded-md bg-[#0b0f18] px-2 py-1.5"
+              className={`min-w-[148px] shrink-0 rounded-md border-l-2 bg-[#0b0f18] px-2 py-1.5 animate-in fade-in duration-500 ${
+                item.type === 'sell'
+                  ? 'border-l-emerald-500'
+                  : 'border-l-amber-400'
+              }`}
             >
               <div className="flex items-center gap-1.5">
                 <div className="relative h-7 w-7 overflow-hidden rounded-sm">
@@ -40,7 +44,9 @@ export function WinnersFeed() {
                 {item.type === 'sell' ? 'Realized value' : 'Trade volume'}
               </p>
               <p
-                className={`text-[11px] font-bold leading-tight ${item.type === 'sell' ? 'text-amber-400' : 'text-emerald-400'}`}
+                className={`text-[11px] font-bold leading-tight ${
+                  item.type === 'sell' ? 'text-emerald-400' : 'text-amber-400'
+                }`}
               >
                 {item.amount.toFixed(2)} MON
               </p>

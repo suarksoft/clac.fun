@@ -7,13 +7,15 @@ import { PriceChart } from '@/components/price-chart'
 import { TradePanel } from '@/components/trade-panel'
 import { TokenInfoPanel } from '@/components/token-info-panel'
 import { TradesTable } from '@/components/trades-table'
-import { formatTimeAgo, formatNumber } from '@/lib/format'
+import { formatTimeAgo, formatNumber, formatTokenPrice, formatMonAmount } from '@/lib/format'
 import type { Trade } from '@/lib/ui-types'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft, Copy, Share2, Star, ExternalLink, Search } from 'lucide-react'
 import { useDeathClock } from '@/hooks/use-death-clock'
+import { getDeathClockColor } from '@/lib/death-clock'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient, createSocketClient } from '@/lib/api/client'
 import { toUiToken, toUiTrade } from '@/lib/api/mappers'
@@ -38,14 +40,6 @@ type TradeSocketPayload = {
 
 type TokenClaccedPayload = {
   tokenId: number
-}
-
-function formatTokenPrice(price: number): string {
-  if (!Number.isFinite(price) || price <= 0) return '0'
-  if (price < 0.000001) return price.toExponential(4)
-  if (price < 0.01) return price.toFixed(8)
-  if (price < 1) return price.toFixed(4)
-  return price.toFixed(2)
 }
 
 export default function TokenDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -197,7 +191,18 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
         <LiveTicker />
-        <main className="flex flex-1 items-center justify-center text-muted-foreground">Token yukleniyor...</main>
+        <main className="flex-1 px-4 py-6">
+          <div className="mx-auto max-w-[1680px] space-y-4">
+            <Skeleton className="h-36 w-full rounded-xl" />
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+              <Skeleton className="h-[520px] w-full rounded-xl" />
+              <div className="space-y-4">
+                <Skeleton className="h-[320px] w-full rounded-xl" />
+                <Skeleton className="h-[260px] w-full rounded-xl" />
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     )
   }
@@ -211,7 +216,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
         <div className="mx-auto w-full max-w-[1680px] px-3 py-4 sm:px-4 lg:px-6">
           {isDead && (
             <div className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center">
-              <p className="text-lg font-bold text-red-500">💀 ${token.symbol} GOT CLAC'D</p>
+              <p className="text-lg font-bold text-red-500">💀 {token.name} GOT CLAC'D</p>
             </div>
           )}
           <div className="mb-4 rounded-xl border border-border bg-card/70 px-3 py-3 sm:px-4">
@@ -287,7 +292,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
               <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2">
                 <p className="text-[11px] text-muted-foreground">Virtual Liquidity</p>
                 <p className="font-mono text-sm font-semibold text-foreground">
-                  {token.poolBalanceMon.toFixed(4)} MON
+                  {formatMonAmount(token.poolBalanceMon, 4)} MON
                 </p>
               </div>
               <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2">
@@ -325,15 +330,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                   {isDead ? "💀 CLAC'D" : death.status === 'dying' || death.status === 'critical' ? '⚠️ DYING SOON' : '🟢 LIVE'}
                 </span>
               </div>
-              <div className={`font-mono text-3xl font-bold sm:text-4xl ${
-                isDead
-                  ? 'text-red-500'
-                  : death.status === 'critical'
-                  ? 'animate-pulse text-red-400'
-                  : death.status === 'dying'
-                  ? 'text-orange-400'
-                  : 'text-foreground'
-              }`}>
+              <div className={`font-mono text-3xl font-bold sm:text-4xl ${isDead ? 'text-red-500' : getDeathClockColor(death.remainingSeconds)}`}>
                 {isDead ? "💀 CLAC'D" : death.compactText}
               </div>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary">
@@ -345,7 +342,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                       ? 'animate-pulse bg-red-500'
                       : 'bg-gradient-to-r from-emerald-500 via-yellow-500 via-orange-500 to-red-500'
                   }`}
-                  style={{ width: `${isDead ? 0 : death.percentage}%` }}
+                  style={{ width: `${isDead ? 100 : death.percentage}%` }}
                 />
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
@@ -376,13 +373,21 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
             <aside className="space-y-4 lg:sticky lg:top-20">
               {isDead ? (
                 <div className="rounded-xl border border-border bg-card p-4">
-                  <h3 className="mb-3 text-lg font-semibold text-foreground">Final Results</h3>
-                  <div className="space-y-2 font-mono text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Pool at death:</span><span>--</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Death tax (5%):</span><span>--</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Pro-rata (65%):</span><span>--</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Lottery (30%):</span><span>--</span></div>
-                  </div>
+                  <h3 className="mb-3 text-lg font-semibold text-red-500">💀 Final Results</h3>
+                  {(() => {
+                    const poolAtDeath = token.poolBalanceMon
+                    const deathTax = poolAtDeath * 0.05
+                    const proRata = poolAtDeath * 0.65
+                    const lottery = poolAtDeath * 0.3
+                    return (
+                      <div className="space-y-2 font-mono text-sm">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Pool at death:</span><span>{formatMonAmount(poolAtDeath, 4)} MON</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Death tax (5%):</span><span>{formatMonAmount(deathTax, 4)} MON</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Pro-rata (65%):</span><span>{formatMonAmount(proRata, 4)} MON</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Lottery (30%):</span><span>{formatMonAmount(lottery, 4)} MON</span></div>
+                      </div>
+                    )
+                  })()}
                   <div className="my-4 border-t border-border pt-3">
                     <p className="mb-2 text-sm font-semibold text-amber-400">🎰 Lottery Winners</p>
                     <p className="text-sm text-muted-foreground">Veri bekleniyor.</p>
@@ -397,7 +402,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                   >
                     {isActionPending || isActionConfirming
                       ? 'Claiming...'
-                      : `Claim ${claimableFromChain.toFixed(4)} MON`}
+                      : `Claim ${formatMonAmount(claimableFromChain, 4)} MON`}
                   </Button>
                 </div>
               ) : (

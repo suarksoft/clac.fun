@@ -223,7 +223,7 @@ export default function PortfolioPage() {
                         </Link>
                       </td>
                       <td className="px-6 py-4 font-mono text-foreground">
-                        {holding.uiBalance.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                        {holding.uiBalance.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                       </td>
                       <td className="px-6 py-4 font-mono text-foreground">
                         {formatUsd(holding.uiValue)}

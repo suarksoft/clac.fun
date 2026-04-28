@@ -337,27 +337,31 @@ export class BlockchainService implements OnModuleInit {
 
     const monFloat = Number(ethers.formatEther(monAmount));
     const priceFloat = Number(ethers.formatEther(newPrice));
-    const supplyFloat = Number(ethers.formatEther(newSupply));
     let poolBalance = '0';
+    let virtualSupply = newSupply.toString();
+    let totalHoldersOnChain: number | null = null;
     try {
       const { contract } = this.getContract();
-      const tokenOnChain = await contract.getToken(tokenId);
+      const tokenOnChain = await contract.tokens(tokenId);
       poolBalance = tokenOnChain.poolBalance.toString();
+      virtualSupply = tokenOnChain.virtualSupply.toString();
+      totalHoldersOnChain = Number(tokenOnChain.totalHolders);
     } catch (error) {
       this.logger.warn(
-        `Could not refresh poolBalance for token #${Number(tokenId)}: ${
+        `Failed to sync on-chain state for token #${Number(tokenId)}: ${
           error instanceof Error ? error.message : 'unknown error'
         }`,
       );
     }
 
+    const effectiveSupplyFloat = Number(ethers.formatEther(virtualSupply));
     await this.prisma.token.update({
       where: { id: Number(tokenId) },
       data: {
-        virtualSupply: newSupply.toString(),
+        virtualSupply,
         currentPrice: newPrice.toString(),
         poolBalance,
-        marketCap: priceFloat * supplyFloat,
+        marketCap: priceFloat * effectiveSupplyFloat,
         volume24h: { increment: monFloat },
       },
     });
@@ -414,9 +418,11 @@ export class BlockchainService implements OnModuleInit {
       }
     }
 
-    const totalHolders = await this.prisma.holder.count({
-      where: { tokenId: tokenIdNumber },
-    });
+    const totalHolders =
+      totalHoldersOnChain ??
+      (await this.prisma.holder.count({
+        where: { tokenId: tokenIdNumber },
+      }));
     await this.prisma.token.update({
       where: { id: tokenIdNumber },
       data: { totalHolders },

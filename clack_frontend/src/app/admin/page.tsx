@@ -197,6 +197,10 @@ export default function AdminPage() {
     }
   }
 
+  useEffect(() => {
+    void loadAdminTokens()
+  }, [])
+
   const deleteTokenFromSystem = async (tokenId: number) => {
     if (!isOwner) {
       setErrorText('Sadece owner token silebilir.')

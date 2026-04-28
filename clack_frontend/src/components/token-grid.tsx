@@ -10,6 +10,7 @@ import { getDeathClockState } from '@/lib/death-clock'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api/client'
 import { toUiToken } from '@/lib/api/mappers'
+import { Skeleton } from '@/components/ui/skeleton'
 
 type FilterOption = 'live' | 'dying' | 'hot' | 'new' | 'clacd' | 'claiming'
 
@@ -143,8 +144,17 @@ export function TokenGrid() {
 
       {/* Grid */}
       {isLoading && (
-        <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
-          Tokens yukleniyor...
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          {Array.from({ length: 10 }).map((_, idx) => (
+            <div key={idx} className="rounded-2xl border border-border bg-card p-3">
+              <Skeleton className="aspect-square w-full rounded-xl" />
+              <div className="mt-3 space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/2" />
+                <Skeleton className="h-3 w-full" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
       {!isLoading && sortedTokens.length === 0 && (

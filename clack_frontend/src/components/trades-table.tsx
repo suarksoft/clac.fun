@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { formatAddress, formatTimeAgo } from '@/lib/format'
+import { formatAddress, formatTimeAgo, formatTokenPrice } from '@/lib/format'
 import type { Trade } from '@/lib/ui-types'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -130,6 +130,7 @@ export function TradesTable({ trades }: TradesTableProps) {
               <th className="px-4 py-3 font-medium">Type</th>
               <th className="px-4 py-3 font-medium">Amount (MON)</th>
               <th className="px-4 py-3 font-medium">Amount (Token)</th>
+              <th className="px-4 py-3 font-medium">Price (MON)</th>
               <th className="px-4 py-3 font-medium">Time</th>
               <th className="px-4 py-3 font-medium">Txn</th>
             </tr>
@@ -137,7 +138,7 @@ export function TradesTable({ trades }: TradesTableProps) {
           <tbody>
             {tableTrades.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">
                   Trade bulunamadi.
                 </td>
               </tr>
@@ -174,6 +175,11 @@ export function TradesTable({ trades }: TradesTableProps) {
                 <td className="px-4 py-3">
                   <span className="font-mono text-cyan-400">
                     {trade.tokenAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="font-mono text-foreground">
+                    {trade.tokenAmount > 0 ? formatTokenPrice(trade.amount / trade.tokenAmount) : '0'}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
