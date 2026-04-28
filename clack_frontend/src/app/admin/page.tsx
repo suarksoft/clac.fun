@@ -174,7 +174,7 @@ export default function AdminPage() {
     await publicClient.waitForTransactionReceipt({ hash })
   }
 
-  const loadAdminTokens = async () => {
+  async function loadAdminTokens() {
     setIsTokensLoading(true)
     try {
       const response = await fetch(
@@ -196,10 +196,6 @@ export default function AdminPage() {
       setIsTokensLoading(false)
     }
   }
-
-  useEffect(() => {
-    void loadAdminTokens()
-  }, [])
 
   const deleteTokenFromSystem = async (tokenId: number) => {
     if (!isOwner) {

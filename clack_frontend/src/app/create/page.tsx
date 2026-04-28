@@ -1,482 +1,333 @@
 'use client'
 
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { Spinner } from '@/components/ui/spinner'
 import {
   useAccount,
   useChainId,
-  usePublicClient,
   useSwitchChain,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from 'wagmi'
-import { useConnectModal } from '@rainbow-me/rainbowkit'
-import { decodeEventLog, formatEther, parseEther } from 'viem'
+import { decodeEventLog, parseEther } from 'viem'
 import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
 import { monadTestnet } from '@/lib/web3/chains'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { 
-  Zap, 
-  Clock, 
-  AlertCircle,
-  Image as ImageIcon,
-  Wallet
-} from 'lucide-react'
 import Link from 'next/link'
-import Image from 'next/image'
-
-type Duration = '6h' | '12h' | '24h'
-
-const DURATION_SECONDS: Record<Duration, bigint> = {
-  '6h': BigInt(6 * 60 * 60),
-  '12h': BigInt(12 * 60 * 60),
-  '24h': BigInt(24 * 60 * 60),
-}
 
 export default function CreateTokenPage() {
-  const [name, setName] = useState('')
-  const [symbol, setSymbol] = useState('')
-  const [description, setDescription] = useState('')
-  const [imageUrl, setImageUrl] = useState('')
-  const [duration, setDuration] = useState<Duration>('12h')
-  const [errorText, setErrorText] = useState<string | null>(null)
-  const [successText, setSuccessText] = useState<string | null>(null)
-  const [creationFeeWei, setCreationFeeWei] = useState<bigint>(parseEther('10'))
-  const [publicCreation, setPublicCreation] = useState<boolean | null>(null)
-  const [ownerAddress, setOwnerAddress] = useState<string | null>(null)
-  const [isConfigLoading, setIsConfigLoading] = useState(true)
+  const [tokenName, setTokenName] = useState('')
+  const [tokenSymbol, setTokenSymbol] = useState('')
+  const [imageURI, setImageURI] = useState('')
+  const [selectedDuration, setSelectedDuration] = useState(21600)
+  const [newTokenId, setNewTokenId] = useState<string | null>(null)
+
+  const durations = [
+    {
+      value: 21600,
+      label: '6 Hours',
+      icon: '⚡',
+      desc: 'Maximum intensity',
+      recommended: true,
+    },
+    {
+      value: 43200,
+      label: '12 Hours',
+      icon: '🔥',
+      desc: 'Half-day heat',
+      recommended: false,
+    },
+    {
+      value: 86400,
+      label: '24 Hours',
+      icon: '⏰',
+      desc: 'Full day run',
+      recommended: false,
+    },
+  ] as const
+
   const router = useRouter()
-  const { address, isConnected } = useAccount()
+  const { isConnected } = useAccount()
   const chainId = useChainId()
   const { switchChain } = useSwitchChain()
-  const { openConnectModal } = useConnectModal()
-  const publicClient = usePublicClient()
-  const { writeContractAsync, data: txHash, isPending } = useWriteContract()
   const {
-    data: txReceipt,
-    isLoading: isConfirming,
-    isSuccess,
-    isError: isReceiptError,
-  } = useWaitForTransactionReceipt({ hash: txHash })
+    writeContract,
+    data: hash,
+    isPending,
+    error,
+  } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess, data: receipt } =
+    useWaitForTransactionReceipt({ hash })
 
-  const durations: { value: Duration; label: string; description: string; icon: ReactNode }[] = [
-    {
-      value: '6h',
-      label: '6 Hours',
-      description: 'Maximum intensity',
-      icon: <Zap className="h-5 w-5" />
-    },
-    {
-      value: '12h',
-      label: '12 Hours',
-      description: 'Half-day heat',
-      icon: <Clock className="h-5 w-5" />
-    },
-    {
-      value: '24h',
-      label: '24 Hours',
-      description: 'Full day run',
-      icon: <Clock className="h-5 w-5" />
-    }
-  ]
-
-  const creationFeeDisplay = useMemo(() => Number(formatEther(creationFeeWei)).toFixed(2), [creationFeeWei])
-  const isOwner = Boolean(
-    address &&
-      ownerAddress &&
-      address.toLowerCase() === ownerAddress.toLowerCase(),
-  )
   const isWrongChain = isConnected && chainId !== monadTestnet.id
-  const creationLockedForUser = publicCreation === false && !isOwner
-  const canSubmit =
-    Boolean(name.trim()) &&
-    Boolean(symbol.trim()) &&
-    Boolean(imageUrl.trim()) &&
-    !isConfigLoading &&
-    !isWrongChain &&
-    !creationLockedForUser &&
-    !isPending &&
-    !isConfirming
+  const isDurationValid = [21600, 43200, 86400].includes(selectedDuration)
+  const isFormValid = useMemo(
+    () =>
+      tokenName.trim().length > 0 &&
+      tokenName.trim().length <= 32 &&
+      tokenSymbol.trim().length > 0 &&
+      tokenSymbol.trim().length <= 8 &&
+      isDurationValid,
+    [tokenName, tokenSymbol, isDurationValid],
+  )
 
   useEffect(() => {
-    if (!publicClient) return
+    if (!receipt || !isSuccess) return
 
-    let cancelled = false
-    const loadCreateConfig = async () => {
-      setIsConfigLoading(true)
+    let createdTokenId: string | null = null
+    for (const log of receipt.logs) {
       try {
-        const [fee, isPublic, owner] = await Promise.all([
-          publicClient.readContract({
-            address: CLAC_FACTORY_ADDRESS as `0x${string}`,
-            abi: CLAC_FACTORY_ABI,
-            functionName: 'creationFee',
-          }),
-          publicClient.readContract({
-            address: CLAC_FACTORY_ADDRESS as `0x${string}`,
-            abi: CLAC_FACTORY_ABI,
-            functionName: 'publicCreation',
-          }),
-          publicClient.readContract({
-            address: CLAC_FACTORY_ADDRESS as `0x${string}`,
-            abi: CLAC_FACTORY_ABI,
-            functionName: 'owner',
-          }),
-        ])
-
-        if (!cancelled) {
-          setCreationFeeWei(fee as bigint)
-          setPublicCreation(Boolean(isPublic))
-          setOwnerAddress(String(owner))
+        const decoded = decodeEventLog({
+          abi: CLAC_FACTORY_ABI,
+          data: log.data,
+          topics: log.topics,
+        })
+        if (decoded.eventName === 'TokenCreated') {
+          createdTokenId = String(decoded.args.tokenId)
+          break
         }
       } catch {
-        if (!cancelled) {
-          setErrorText('Could not read contract config. Check RPC and contract address.')
-        }
-      } finally {
-        if (!cancelled) {
-          setIsConfigLoading(false)
-        }
+        // ignore unrelated logs
       }
     }
 
-    loadCreateConfig()
-    return () => {
-      cancelled = true
-    }
-  }, [publicClient])
+    setNewTokenId(createdTokenId)
+    toast.success('Token created successfully!')
 
-  useEffect(() => {
-    if (isSuccess && txReceipt) {
-      let createdTokenId: string | null = null
-      for (const log of txReceipt.logs) {
-        try {
-          const decoded = decodeEventLog({
-            abi: CLAC_FACTORY_ABI,
-            data: log.data,
-            topics: log.topics,
-          })
-          if (decoded.eventName === 'TokenCreated') {
-            createdTokenId = String(decoded.args.tokenId)
-            break
-          }
-        } catch {
-          // ignore unrelated logs
-        }
-      }
-
-      setSuccessText('Token created successfully. It will appear after indexer sync.')
-      setErrorText(null)
-      setName('')
-      setSymbol('')
-      setDescription('')
-      setImageUrl('')
-      setDuration('12h')
+    const timer = setTimeout(() => {
       if (createdTokenId) {
         router.push(`/token/${createdTokenId}`)
+      } else {
+        router.push('/')
       }
-    } else if (isReceiptError) {
-      setSuccessText(null)
-      setErrorText('Transaction failed while waiting for confirmation.')
-      toast.error('Transaction failed while waiting for confirmation.')
-    }
-  }, [isSuccess, isReceiptError, txReceipt, router])
+    }, 2000)
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!isConnected) {
-      openConnectModal?.()
+    return () => clearTimeout(timer)
+  }, [isSuccess, receipt, router])
+
+  useEffect(() => {
+    if (!error) return
+    const message = error.message.toLowerCase()
+    if (message.includes('insufficient funds')) {
+      toast.error('Insufficient MON balance. You need 10 MON to create a token.')
       return
     }
+    if (
+      message.includes('user rejected') ||
+      message.includes('user denied') ||
+      message.includes('rejected the request')
+    ) {
+      toast.error('Transaction cancelled.')
+      return
+    }
+    if (message.includes('creation not public yet')) {
+      toast.error('Token creation is currently restricted to admins.')
+      return
+    }
+    toast.error('Transaction failed. Please try again.')
+  }, [error])
+
+  const handleCreate = () => {
+    if (!tokenName.trim() || !tokenSymbol.trim()) {
+      toast.error('Token name and symbol are required')
+      return
+    }
+
+    if (!isConnected) {
+      toast.error('Connect your wallet first')
+      return
+    }
+
     if (isWrongChain) {
       switchChain({ chainId: monadTestnet.id })
+      toast.error('Switch to Monad Testnet first')
       return
     }
 
-    if (!name.trim() || !symbol.trim() || !imageUrl.trim()) {
-      setErrorText('Name, symbol, and image URL are required.')
-      return
-    }
-    if (!imageUrl.trim().startsWith('https://')) {
-      setErrorText('Token image URL must start with https://')
+    if (!isDurationValid) {
+      toast.error('Invalid duration selected')
       return
     }
 
-    if (creationLockedForUser) {
-      setErrorText('Token creation is currently restricted to contract owner.')
-      return
-    }
-
-    setErrorText(null)
-    setSuccessText(null)
-    try {
-      await writeContractAsync({
-        address: CLAC_FACTORY_ADDRESS as `0x${string}`,
-        abi: CLAC_FACTORY_ABI,
-        functionName: 'createToken',
-        args: [name.trim(), symbol.trim().toUpperCase(), imageUrl.trim(), DURATION_SECONDS[duration]],
-        value: creationFeeWei,
-      })
-    } catch (error) {
-      setErrorText(
-        error instanceof Error ? 'Token creation transaction failed. Please confirm wallet and fee.' : 'Token creation transaction failed.',
-      )
-      toast.error('Token creation transaction failed.')
-    }
+    writeContract({
+      address: CLAC_FACTORY_ADDRESS as `0x${string}`,
+      abi: CLAC_FACTORY_ABI,
+      functionName: 'createToken',
+      args: [
+        tokenName.trim(),
+        tokenSymbol.trim().toUpperCase(),
+        imageURI.trim() || '',
+        BigInt(selectedDuration),
+      ],
+      value: parseEther('10'),
+    })
   }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
 
-      <main className="flex-1">
-        <div className="container mx-auto max-w-2xl px-4 py-8">
-          {/* Page Header */}
-          <div className="mb-8 text-center">
-            <div className="mb-4 inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/20">
-              <Image 
-                src="/clac-logo.svg" 
-                alt="Clac" 
-                width={48} 
-                height={48}
-                className="h-12 w-12"
-              />
-            </div>
-            <h1 className="mb-2 text-3xl font-bold text-foreground">Snap Your Token Into Existence</h1>
-            <p className="text-muted-foreground">
-              One snap and your memecoin goes live. Fair bonding curve, no presale, no team allocation.
+      <main className="flex-1 px-4 py-10">
+        <div className="mx-auto w-full max-w-[480px] rounded-2xl border border-zinc-800 bg-zinc-950/70 p-6 shadow-2xl">
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-bold text-white">🚀 Create Token</h1>
+            <p className="mt-1 text-sm text-zinc-400">
+              Launch your token on clac.fun
             </p>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Image Upload */}
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="image" className="text-foreground">Token Image</Label>
-              <div className="flex gap-4">
-                <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border-2 border-dashed border-border bg-secondary">
-                  {imageUrl ? (
-                    <img src={imageUrl} alt="Preview" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center">
-                      <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-1 flex-col justify-center gap-2">
-                  <Input
-                    id="image"
-                    type="url"
-                    placeholder="Enter image URL or upload"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    className="border-border bg-input"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Recommended: 400x400px, PNG or JPG format
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Token Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-foreground">Token Name</Label>
+              <Label htmlFor="token-name" className="text-zinc-200">
+                Token Name *
+              </Label>
               <Input
-                id="name"
-                placeholder="e.g., Moon Shot"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                id="token-name"
+                value={tokenName}
                 maxLength={32}
-                className="border-border bg-input"
+                onChange={(e) => setTokenName(e.target.value)}
+                placeholder="e.g., Moon Shot"
+                className="border-zinc-700 bg-zinc-900 text-white"
               />
-              <p className="text-xs text-muted-foreground">{name.length}/32 characters</p>
             </div>
 
-            {/* Token Symbol */}
             <div className="space-y-2">
-              <Label htmlFor="symbol" className="text-foreground">Token Symbol</Label>
+              <Label htmlFor="token-symbol" className="text-zinc-200">
+                Token Symbol *
+              </Label>
               <Input
-                id="symbol"
-                placeholder="e.g., MOON"
-                value={symbol}
-                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                id="token-symbol"
+                value={tokenSymbol}
                 maxLength={8}
-                className="border-border bg-input uppercase"
+                onChange={(e) => setTokenSymbol(e.target.value.toUpperCase())}
+                placeholder="e.g., MOON"
+                className="border-zinc-700 bg-zinc-900 text-white uppercase"
               />
-              <p className="text-xs text-muted-foreground">{symbol.length}/8 characters</p>
             </div>
 
-            {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="description" className="text-foreground">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Tell the world about your token..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={256}
-                className="min-h-[100px] resize-none border-border bg-input"
+              <Label htmlFor="token-image" className="text-zinc-200">
+                Token Image (optional)
+              </Label>
+              <Input
+                id="token-image"
+                type="text"
+                value={imageURI}
+                onChange={(e) => setImageURI(e.target.value)}
+                placeholder="https://example.com/image.png"
+                className="border-zinc-700 bg-zinc-900 text-white"
               />
-              <p className="text-xs text-muted-foreground">{description.length}/256 characters</p>
+              <p className="text-xs text-zinc-500">
+                Paste an image URL. Leave empty for default.
+              </p>
             </div>
 
-            {/* Duration Selection - Time until SNAP */}
-            <div className="space-y-3">
-              <Label className="text-foreground">Time Until Snap (Token Graduation)</Label>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {durations.map((d) => (
-                  <button
-                    key={d.value}
-                    type="button"
-                    onClick={() => setDuration(d.value)}
-                    className={`relative rounded-xl border p-4 text-left transition-all ${
-                      duration === d.value
-                        ? 'border-violet-400 bg-violet-500/10 shadow-[0_0_20px_rgba(139,92,246,0.25)]'
-                        : 'border-border bg-card hover:border-primary/50'
-                    }`}
-                  >
-                    {d.value === '6h' && (
-                      <span className="absolute -top-2 right-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                        RECOMMENDED
-                      </span>
-                    )}
-                    <div
-                      className={`mb-2 ${
-                        duration === d.value ? 'text-primary' : 'text-muted-foreground'
+            <div className="space-y-2">
+              <Label className="text-zinc-200">Duration *</Label>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {durations.map((d) => {
+                  const isSelected = selectedDuration === d.value
+                  return (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => setSelectedDuration(d.value)}
+                      className={`relative rounded-xl border p-3 text-left transition-all ${
+                        isSelected
+                          ? 'border-violet-400 bg-violet-500/10 shadow-[0_0_20px_rgba(139,92,246,0.28)]'
+                          : 'border-zinc-700 bg-zinc-900 text-zinc-300'
                       }`}
                     >
-                      {d.icon}
-                    </div>
-                    <p
-                      className={`font-semibold ${
-                        duration === d.value ? 'text-foreground' : 'text-foreground'
-                      }`}
-                    >
-                      {d.label}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{d.description}</p>
-                  </button>
-                ))}
+                      {d.recommended && (
+                        <span className="absolute -top-2 right-2 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+                          Recommended
+                        </span>
+                      )}
+                      <div className="text-xl">{d.icon}</div>
+                      <p className="mt-1 font-semibold">{d.label}</p>
+                      <p className="text-xs text-zinc-400">{d.desc}</p>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
-            {/* Fee Info */}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Creation fee:</span>
-                <span className="font-mono font-semibold text-foreground">
-                  {isConfigLoading ? 'Loading...' : `${creationFeeDisplay} MON`}
-                </span>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Initial Liquidity</span>
-                <span className="text-muted-foreground">Provided by bonding curve</span>
-              </div>
+            <div className="mb-1 text-center text-sm text-zinc-400">
+              <span className="font-bold text-white">Creation fee: 10 MON</span>
+              <br />
+              This fee is sent to the protocol treasury.
             </div>
 
-            {publicCreation === false && (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-500/90">
-                Public creation is disabled on contract. Only owner can create tokens right now.
-              </div>
-            )}
-            {isWrongChain && (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-500/90">
-                Wrong network detected. Switch to Monad Testnet before creating a token.
-              </div>
-            )}
-
-            {/* Warning */}
-            <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
-              <div className="text-sm text-amber-500/90">
-                <p className="font-semibold">The Snap is Coming</p>
-                <p>
-                  When the bonding curve hits 100%, SNAP - your token graduates to DEX. 
-                  Like Thanos, but everyone wins. Ape in before the snap.
-                </p>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            {isConnected ? (
+            {!isConnected && (
               <Button
-                type="submit"
-                className="w-full gap-3 bg-primary py-6 text-lg font-semibold text-primary-foreground hover:bg-primary/90"
-                style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 45%, #a78bfa 100%)' }}
-                disabled={!canSubmit}
+                disabled
+                className="w-full cursor-not-allowed py-6 text-base opacity-50"
               >
-                <Image 
-                  src="/clac-logo.svg" 
-                  alt="Snap" 
-                  width={24} 
-                  height={24}
-                  className="h-6 w-6"
-                />
-                {isWrongChain
-                  ? 'Switch to Monad Testnet'
-                  : isPending
-                  ? 'Waiting for wallet...'
-                  : isConfirming
-                  ? 'Creating token...'
-                  : 'Launch Token 🚀'}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                className="w-full gap-3 bg-primary py-6 text-lg font-semibold text-primary-foreground hover:bg-primary/90"
-                style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 45%, #a78bfa 100%)' }}
-                onClick={() => openConnectModal?.()}
-              >
-                <Wallet className="h-5 w-5" />
-                Connect to Snap
+                Connect Wallet to Create
               </Button>
             )}
-            {txHash && (
-              <p className="truncate text-center text-xs text-muted-foreground">
-                Tx: {txHash}
+
+            {isConnected && !isPending && !isConfirming && !isSuccess && (
+              <Button
+                onClick={handleCreate}
+                disabled={!isFormValid || isWrongChain}
+                className="w-full bg-violet-600 py-6 text-base text-white hover:bg-violet-500 disabled:opacity-50"
+              >
+                🚀 Launch Token (10 MON)
+              </Button>
+            )}
+
+            {isPending && (
+              <Button disabled className="w-full py-6 text-base opacity-50">
+                ⏳ Waiting for wallet...
+              </Button>
+            )}
+
+            {isConfirming && (
+              <Button disabled className="w-full gap-2 py-6 text-base opacity-50">
+                <Spinner />
+                Creating token...
+              </Button>
+            )}
+
+            {isSuccess && (
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-center text-sm text-emerald-400">
+                ✅ Token created successfully!
+                {newTokenId ? (
+                  <div className="mt-1">
+                    <Link className="underline hover:text-emerald-300" href={`/token/${newTokenId}`}>
+                      View your token →
+                    </Link>
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {isWrongChain && isConnected && !isPending && !isConfirming && !isSuccess && (
+              <p className="text-center text-xs text-amber-400">
+                Wrong network detected. Please switch to Monad Testnet (10143).
               </p>
             )}
-            {successText && <p className="text-center text-xs text-emerald-400">{successText}</p>}
-            {errorText && <p className="text-center text-xs text-red-400">{errorText}</p>}
 
-            <p className="text-center text-xs text-muted-foreground">
-              By creating a token, you agree to our{' '}
-              <Link href="#" className="text-primary hover:underline">
-                Terms of Service
-              </Link>
+            {hash ? (
+              <p className="truncate text-center text-xs text-zinc-500">
+                Tx: {hash}
+              </p>
+            ) : null}
+
+            <p className="text-center text-xs text-zinc-500">
+              Every token has a death clock.
+              <br />
+              When time&apos;s up: clac. 💀
             </p>
-          </form>
+          </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-border bg-card py-6">
-        <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 text-sm text-muted-foreground md:flex-row">
-          <div className="flex items-center gap-4">
-            <span className="font-semibold text-foreground">Clac.fun</span>
-            <span className="text-xs">Built for degens</span>
-          </div>
-          <div className="flex items-center gap-6">
-            <a href="#" className="transition-colors hover:text-foreground">
-              Docs
-            </a>
-            <a href="#" className="transition-colors hover:text-foreground">
-              Twitter
-            </a>
-            <a href="#" className="transition-colors hover:text-foreground">
-              Telegram
-            </a>
-            <a href="#" className="transition-colors hover:text-foreground">
-              Contract
-            </a>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }
