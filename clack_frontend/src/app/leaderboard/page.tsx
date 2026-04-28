@@ -7,7 +7,7 @@ import { formatNumber } from '@/lib/format'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Trophy, TrendingUp, Users } from 'lucide-react'
-import { getDeathClockState } from '@/lib/death-clock'
+import { getDeathClockColor, getDeathClockState } from '@/lib/death-clock'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api/client'
 import { toUiToken } from '@/lib/api/mappers'
@@ -111,15 +111,7 @@ export default function LeaderboardPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`font-mono text-sm ${
-                            isDead
-                              ? 'text-red-500'
-                              : death.status === 'critical'
-                              ? 'animate-pulse text-red-400'
-                              : death.status === 'dying'
-                              ? 'text-orange-400'
-                              : 'text-foreground'
-                          }`}>
+                          <span className={`font-mono text-sm ${isDead ? 'text-red-500' : getDeathClockColor(death.remainingSeconds)}`}>
                             {isDead ? "CLAC'D" : death.longText}
                           </span>
                         </td>

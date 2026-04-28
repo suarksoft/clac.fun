@@ -336,7 +336,7 @@ export default function CreateTokenPage() {
                     onClick={() => setDuration(d.value)}
                     className={`relative rounded-xl border p-4 text-left transition-all ${
                       duration === d.value
-                        ? 'border-primary bg-primary/10'
+                        ? 'border-violet-400 bg-violet-500/10 shadow-[0_0_20px_rgba(139,92,246,0.25)]'
                         : 'border-border bg-card hover:border-primary/50'
                     }`}
                   >
@@ -368,7 +368,7 @@ export default function CreateTokenPage() {
             {/* Fee Info */}
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Creation Fee</span>
+                <span className="text-sm text-muted-foreground">Creation fee:</span>
                 <span className="font-mono font-semibold text-foreground">
                   {isConfigLoading ? 'Loading...' : `${creationFeeDisplay} MON`}
                 </span>
@@ -407,6 +407,7 @@ export default function CreateTokenPage() {
               <Button
                 type="submit"
                 className="w-full gap-3 bg-primary py-6 text-lg font-semibold text-primary-foreground hover:bg-primary/90"
+                style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 45%, #a78bfa 100%)' }}
                 disabled={!canSubmit}
               >
                 <Image 
@@ -428,6 +429,7 @@ export default function CreateTokenPage() {
               <Button
                 type="button"
                 className="w-full gap-3 bg-primary py-6 text-lg font-semibold text-primary-foreground hover:bg-primary/90"
+                style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 45%, #a78bfa 100%)' }}
                 onClick={() => openConnectModal?.()}
               >
                 <Wallet className="h-5 w-5" />

@@ -1,12 +1,13 @@
 'use client'
 
 import type { Token } from '@/lib/ui-types'
-import { formatNumber, formatTimeAgo } from '@/lib/format'
+import { formatNumber, formatTimeAgo, formatTokenPrice } from '@/lib/format'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Users, BarChart3, Clock } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useDeathClock } from '@/hooks/use-death-clock'
+import { getDeathClockColor } from '@/lib/death-clock'
 
 interface TokenCardProps {
   token: Token
@@ -28,7 +29,15 @@ export function TokenCard({ token }: TokenCardProps) {
 
   return (
     <Link href={`/token/${token.id}`} className="group block">
-      <div className="overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5">
+      <div
+        className={`overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 ${
+          isDead
+            ? 'border-red-500/40 opacity-80 saturate-50'
+            : death.remainingSeconds < 3600
+            ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
+            : 'border-border'
+        }`}
+      >
         {/* Image Section */}
         <div className="relative aspect-square overflow-hidden">
           <Image
@@ -42,15 +51,7 @@ export function TokenCard({ token }: TokenCardProps) {
             <div className="mb-2 flex items-center justify-between text-xs">
               <span className="text-white/80">Death Clock</span>
               <span
-                className={`font-mono text-base font-bold ${
-                  isDead
-                    ? 'text-red-500'
-                    : death.status === 'critical'
-                    ? 'animate-pulse text-red-400'
-                    : death.status === 'dying'
-                    ? 'text-orange-400'
-                    : 'text-white'
-                }`}
+                className={`font-mono text-base font-bold ${isDead ? 'text-red-500' : getDeathClockColor(death.remainingSeconds)}`}
               >
                 {isDead ? "💀 CLAC'D" : death.longText}
               </span>
@@ -66,7 +67,7 @@ export function TokenCard({ token }: TokenCardProps) {
                     ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
                     : 'bg-white'
                 }`}
-                style={{ width: `${isDead ? 0 : death.percentage}%` }}
+                style={{ width: `${isDead ? 100 : death.percentage}%` }}
               />
             </div>
           </div>
@@ -95,6 +96,7 @@ export function TokenCard({ token }: TokenCardProps) {
                 {token.symbol}
               </span>
               <h3 className="mt-1 text-base font-semibold text-foreground">{token.name}</h3>
+              <p className="mt-1 font-mono text-xs text-foreground">{formatTokenPrice(token.price)} MON</p>
               <span className="mt-1 inline-block rounded bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-500">
                 First buyer: {token.firstBuyerMultiplier.toFixed(1)}x
               </span>

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Wallet, Settings, RotateCcw } from 'lucide-react'
+import { Wallet, Settings, RotateCcw, Loader2 } from 'lucide-react'
 import {
   useAccount,
   useBalance,
@@ -17,6 +17,7 @@ import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { formatEther, parseEther } from 'viem'
 import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
 import { monadTestnet } from '@/lib/web3/chains'
+import { formatMonAmount, formatTokenPrice } from '@/lib/format'
 
 interface TradePanelProps {
   tokenId: bigint
@@ -62,7 +63,9 @@ export function TradePanel({
   const quickSellPercents = [25, 50, 75, 100]
 
   const calculatedTokens =
-    amount && amount !== 'max' ? (parseFloat(amount) / currentPrice).toFixed(2) : '0'
+    amount && amount !== 'max' && currentPrice > 0
+      ? (parseFloat(amount) / currentPrice).toFixed(2)
+      : '0'
   const walletMonBalanceText = walletMonBalance.toLocaleString('en-US', {
     maximumFractionDigits: 4,
   })
@@ -101,7 +104,7 @@ export function TradePanel({
           functionName: fn,
           args: [tokenId, parsedAmount],
         })
-        setQuote(Number(formatEther(result as bigint)).toFixed(6))
+        setQuote(formatTokenPrice(Number(formatEther(result as bigint))))
       } catch {
         setQuote(null)
       }
@@ -209,7 +212,8 @@ export function TradePanel({
       return
     }
     if (percent === 100) {
-      setAmount(walletTokenBalance.toFixed(6))
+      // Max sattiinda fee yuvarlamasi nedeniyle revert yememek icin %99 kullan.
+      setAmount(((walletTokenBalance * 99) / 100).toFixed(6))
       return
     }
     const value = (walletTokenBalance * percent) / 100
@@ -329,7 +333,7 @@ export function TradePanel({
       <div className="mb-2 flex items-center justify-between text-[11px]">
         <span className="text-muted-foreground">Expected</span>
         <span className="font-mono text-primary">
-          {activeTab === 'buy' ? `${calculatedTokens} ${tokenSymbol}` : `${quote || '0'} MON`}
+          {activeTab === 'buy' ? `${formatMonAmount(Number(calculatedTokens), 2)} ${tokenSymbol}` : `${quote || '0'} MON`}
         </span>
       </div>
       {quote && (
@@ -350,7 +354,7 @@ export function TradePanel({
           activeTab === 'buy' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-red-500 text-white hover:bg-red-600'
         }`}
       >
-        <Wallet className="h-4 w-4" />
+        {isPending || txReceipt.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
         {isDead
           ? "💀 THIS TOKEN GOT CLAC'D"
           : !isConnected
@@ -358,7 +362,7 @@ export function TradePanel({
           : isWrongChain
           ? 'Switch to Monad Testnet'
           : isPending || txReceipt.isLoading
-          ? 'Processing...'
+          ? 'Confirming...'
           : activeTab === 'buy'
           ? 'Buy'
           : 'Sell'}

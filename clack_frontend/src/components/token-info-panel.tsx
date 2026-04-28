@@ -1,7 +1,7 @@
 'use client'
 
 import type { Token } from '@/lib/ui-types'
-import { formatAddress, formatNumber, formatTimeAgo } from '@/lib/format'
+import { formatAddress, formatNumber, formatTimeAgo, formatTokenPrice, formatMonAmount } from '@/lib/format'
 import Image from 'next/image'
 import { Copy, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -36,7 +36,7 @@ export function TokenInfoPanel({ token, totalTxns, buyCount, sellCount }: TokenI
         <div className="space-y-2 text-xs">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Pool Balance</span>
-            <span className="font-mono text-foreground">{token.poolBalanceMon.toFixed(4)} MON</span>
+            <span className="font-mono text-foreground">{formatMonAmount(token.poolBalanceMon, 4)} MON</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Total Trades</span>
@@ -84,7 +84,7 @@ export function TokenInfoPanel({ token, totalTxns, buyCount, sellCount }: TokenI
           </div>
           <div className="rounded-md border border-border bg-secondary/20 p-2">
             <p className="text-[10px] text-muted-foreground">PRICE MON</p>
-            <p className="font-mono text-xs text-foreground">{token.price.toFixed(8)} MON</p>
+            <p className="font-mono text-xs text-foreground">{formatTokenPrice(token.price)} MON</p>
           </div>
           <div className="rounded-md border border-border bg-secondary/20 p-2">
             <p className="text-[10px] text-muted-foreground">FDV</p>

@@ -1,11 +1,37 @@
 export function formatNumber(num: number): string {
-  if (num >= 1000000) {
-    return `$${(num / 1000000).toFixed(2)}M`
+  if (!Number.isFinite(num)) return '$0.00'
+  if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`
+  if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`
+  if (num >= 1_000) return `$${(num / 1_000).toFixed(2)}K`
+  if (num >= 1) return `$${num.toFixed(2)}`
+  return `$${num.toFixed(4)}`
+}
+
+export function formatTokenPrice(price: number): string {
+  if (!Number.isFinite(price) || price <= 0) return '0'
+  if (price >= 1) {
+    return price.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
   }
-  if (num >= 1000) {
-    return `$${(num / 1000).toFixed(2)}K`
+  if (price >= 0.01) return price.toFixed(4)
+  if (price >= 0.0001) return price.toFixed(6)
+
+  const str = price.toFixed(18)
+  const match = str.match(/^0\.(0+)([1-9]\d{0,3})/)
+  if (match) {
+    const zeroCount = match[1].length
+    const significantDigits = match[2]
+    return `0.0{${zeroCount}}${significantDigits}`
   }
-  return `$${num.toFixed(2)}`
+
+  return price.toExponential(4)
+}
+
+export function formatMonAmount(value: number, maxFractionDigits = 4): string {
+  if (!Number.isFinite(value)) return '0'
+  return value.toLocaleString('en-US', { maximumFractionDigits: maxFractionDigits })
 }
 
 export function formatAddress(address: string): string {

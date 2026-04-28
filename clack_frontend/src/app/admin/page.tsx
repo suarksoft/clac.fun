@@ -117,10 +117,6 @@ export default function AdminPage() {
     loadConfig()
   }, [publicClient])
 
-  useEffect(() => {
-    void loadAdminTokens()
-  }, [])
-
   const ensureWalletAndChain = async () => {
     if (!isConnected) {
       const preferredConnector = connectors[0]
@@ -168,6 +164,10 @@ export default function AdminPage() {
       setIsTokensLoading(false)
     }
   }
+
+  useEffect(() => {
+    void loadAdminTokens()
+  }, [])
 
   const deleteTokenFromSystem = async (tokenId: number) => {
     if (!isOwner) {

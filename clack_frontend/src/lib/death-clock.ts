@@ -71,3 +71,10 @@ export function getDeathClockState(
     diesAtLabel: formatClock(deathDate),
   }
 }
+
+export function getDeathClockColor(secondsLeft: number): string {
+  if (secondsLeft <= 0) return 'text-red-500'
+  if (secondsLeft < 600) return 'animate-pulse text-red-500'
+  if (secondsLeft < 3600) return 'text-orange-400'
+  return 'text-white'
+}
