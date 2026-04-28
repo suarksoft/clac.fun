@@ -35,16 +35,19 @@ export class BlockchainService implements OnModuleInit {
     }
 
     await this.connect();
-    try {
-      await this.syncPastEvents();
-    } catch (error) {
-      this.logger.error(
-        `Initial sync failed, continuing with realtime listener: ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
-      );
-    }
     this.listenToEvents();
+
+    // Render gibi ortamlarda port bind gecikmesini engellemek icin
+    // uzun backfill isini startup yolundan cikariyoruz.
+    setTimeout(() => {
+      this.syncPastEvents().catch((error) => {
+        this.logger.error(
+          `Initial sync failed, continuing with realtime listener: ${
+            error instanceof Error ? error.message : 'unknown error'
+          }`,
+        );
+      });
+    }, 0);
   }
 
   private async connect() {
