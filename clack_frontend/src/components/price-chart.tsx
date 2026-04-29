@@ -223,13 +223,13 @@ export function PriceChart({ symbol, currentPrice, trades }: PriceChartProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       {/* Header */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
           <div className="flex items-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${chartSummary.isPositive ? 'bg-emerald-500' : 'bg-red-500'}`} />
-            <span className="text-sm text-muted-foreground">{symbol} / MON</span>
+            <div className={`h-2 w-2 shrink-0 rounded-full ${chartSummary.isPositive ? 'bg-emerald-500' : 'bg-red-500'}`} />
+            <span className="truncate text-sm text-muted-foreground">{symbol} / MON</span>
           </div>
-          <div className="flex gap-4 text-xs">
+          <div className="hidden min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs sm:flex">
             <span className="text-muted-foreground">
               O <span className="text-emerald-500">{formatTokenPrice(chartSummary.open)}</span>
             </span>
@@ -240,24 +240,33 @@ export function PriceChart({ symbol, currentPrice, trades }: PriceChartProps) {
               L <span className="text-foreground">{formatTokenPrice(chartSummary.low)}</span>
             </span>
             <span className="text-muted-foreground">
-              C <span className={chartSummary.isPositive ? 'text-emerald-500' : 'text-red-500'}>
+              C{' '}
+              <span className={chartSummary.isPositive ? 'text-emerald-500' : 'text-red-500'}>
                 {formatTokenPrice(chartSummary.close)}
               </span>
             </span>
             <span className={`font-medium ${chartSummary.isPositive ? 'text-emerald-500' : 'text-red-500'}`}>
-              {chartSummary.isPositive ? '+' : ''}{chartSummary.priceChangePct.toFixed(2)}%
+              {chartSummary.isPositive ? '+' : ''}
+              {chartSummary.priceChangePct.toFixed(2)}%
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm sm:hidden">
+            <span className="truncate font-mono font-semibold text-foreground">{formatTokenPrice(chartSummary.close)}</span>
+            <span className={`shrink-0 font-medium ${chartSummary.isPositive ? 'text-emerald-500' : 'text-red-500'}`}>
+              {chartSummary.isPositive ? '+' : ''}
+              {chartSummary.priceChangePct.toFixed(2)}%
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="-mx-1 flex max-w-full gap-1 overflow-x-auto pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:pb-0">
           {timeframes.map((tf) => (
             <Button
               key={tf}
               variant="ghost"
               size="sm"
               onClick={() => setSelectedTimeframe(tf)}
-              className={`h-7 px-2 text-xs ${
+              className={`h-8 shrink-0 px-2 text-xs sm:h-7 ${
                 selectedTimeframe === tf
                   ? 'bg-secondary text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -279,9 +288,9 @@ export function PriceChart({ symbol, currentPrice, trades }: PriceChartProps) {
       )}
 
       {/* Volume Bar */}
-      <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+      <div className="mt-4 flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <span>Volume SMA</span>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <a
             href="https://www.tradingview.com/"
             target="_blank"

@@ -1,7 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { formatAddress, formatTimeAgo, formatTokenPrice } from '@/lib/format'
+import {
+  formatAbbreviatedTokenAmount,
+  formatAddress,
+  formatTimeAgo,
+  formatTokenPrice,
+} from '@/lib/format'
 import type { Trade } from '@/lib/ui-types'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -44,34 +49,34 @@ export function TradesTable({ trades }: TradesTableProps) {
   return (
     <div className="rounded-xl border border-border bg-card">
       {/* Stats Bar */}
-      <div className="grid grid-cols-5 border-b border-border">
-        <div className="border-r border-border p-4 text-center">
+      <div className="grid grid-cols-2 border-b border-border sm:grid-cols-3 lg:grid-cols-5">
+        <div className="border-b border-r border-border p-3 text-center sm:border-b-0 lg:border-r">
           <p className="text-xs text-muted-foreground">Vol 24h</p>
           <p className="font-mono text-sm font-bold text-foreground">{totalVolume.toFixed(3)} MON</p>
         </div>
-        <div className="border-r border-border p-4 text-center">
+        <div className="border-b border-border p-3 text-center sm:border-r lg:border-r">
           <p className="text-xs text-muted-foreground">Last Trade</p>
           <p className="font-mono text-sm font-bold text-foreground">
             {latestTrade ? `${latestTrade.amount.toFixed(4)} MON` : '--'}
           </p>
         </div>
-        <div className="border-r border-border p-4 text-center">
+        <div className="border-r border-border p-3 text-center lg:border-r">
           <p className="text-xs text-muted-foreground">Buys</p>
           <p className="font-mono text-sm font-bold text-emerald-500">{buyTrades}</p>
         </div>
-        <div className="border-r border-border p-4 text-center">
+        <div className="border-r border-border p-3 text-center lg:border-r">
           <p className="text-xs text-muted-foreground">Sells</p>
           <p className="font-mono text-sm font-bold text-red-500">{sellTrades}</p>
         </div>
-        <div className="p-4 text-center">
+        <div className="col-span-2 border-border p-3 text-center sm:col-span-1 lg:col-span-1">
           <p className="text-xs text-muted-foreground">Trades</p>
           <p className="font-mono text-sm font-bold text-foreground">{trades.length}</p>
         </div>
       </div>
 
       {/* Tabs & Filter */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex gap-1">
+      <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-1 overflow-x-auto">
           <button
             onClick={() => setActiveTab('comments')}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
@@ -98,7 +103,7 @@ export function TradesTable({ trades }: TradesTableProps) {
           </button>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className="text-xs text-muted-foreground">Filter by size</span>
           <Switch
             checked={filterBySize}
@@ -115,7 +120,7 @@ export function TradesTable({ trades }: TradesTableProps) {
               />
             </div>
           )}
-          <span className="text-xs text-muted-foreground">
+          <span className="hidden text-xs text-muted-foreground sm:inline">
             (showing trades greater than {filterValue} MON)
           </span>
         </div>
@@ -123,7 +128,7 @@ export function TradesTable({ trades }: TradesTableProps) {
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="min-w-[520px] w-full">
           <thead>
             <tr className="border-b border-border text-left text-xs text-muted-foreground">
               <th className="px-4 py-3 font-medium">Account</th>
@@ -172,9 +177,9 @@ export function TradesTable({ trades }: TradesTableProps) {
                     {trade.amount.toFixed(6)}
                   </span>
                 </td>
-                <td className="px-4 py-3">
-                  <span className="font-mono text-cyan-400">
-                    {trade.tokenAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                <td className="max-w-[120px] px-4 py-3">
+                  <span className="block truncate font-mono text-cyan-400" title={String(trade.tokenAmount)}>
+                    {formatAbbreviatedTokenAmount(trade.tokenAmount)}
                   </span>
                 </td>
                 <td className="px-4 py-3">

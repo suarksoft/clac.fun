@@ -34,6 +34,18 @@ export function formatMonAmount(value: number, maxFractionDigits = 4): string {
   return value.toLocaleString('en-US', { maximumFractionDigits: maxFractionDigits })
 }
 
+/** Short display for large token amounts (trade tables, mobile). */
+export function formatAbbreviatedTokenAmount(amount: number): string {
+  if (!Number.isFinite(amount)) return '0'
+  const n = Math.abs(amount)
+  const sign = amount < 0 ? '-' : ''
+  if (n >= 1_000_000_000) return `${sign}${(amount / 1_000_000_000).toFixed(2)}B`
+  if (n >= 1_000_000) return `${sign}${(amount / 1_000_000).toFixed(2)}M`
+  if (n >= 1_000) return `${sign}${(amount / 1_000).toFixed(2)}K`
+  if (n >= 1) return `${sign}${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+  return `${sign}${amount.toFixed(4)}`
+}
+
 export function formatAddress(address: string): string {
   if (!address) return '--'
   if (address.length <= 10) return address

@@ -11,7 +11,7 @@ export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-[60] w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3">
@@ -95,42 +95,50 @@ export function Header() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu — fixed overlay above ticker / content */}
       {isMenuOpen && (
-        <div className="border-t border-border bg-background md:hidden">
-          <nav className="container mx-auto flex flex-col gap-2 px-4 py-4">
-            <Link 
-              href="/" 
-              className="rounded-lg px-4 py-2 text-sm font-medium text-primary hover:bg-secondary"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Terminal
-            </Link>
-            <Link 
-              href="/leaderboard" 
-              className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Leaderboard
-            </Link>
-            <Link href="/create" onClick={() => setIsMenuOpen(false)}>
-              <Button className="mt-1 w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-                <Plus className="h-4 w-4" />
-                Create Token
-              </Button>
-            </Link>
-            <Link 
-              href="/portfolio" 
-              className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Portfolio
-            </Link>
-            <div className="mt-2 px-1">
-              <ConnectButton label="Connect" showBalance={false} />
-            </div>
-          </nav>
-        </div>
+        <>
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="fixed inset-0 top-16 z-[58] bg-background/70 backdrop-blur-sm md:hidden"
+            onClick={() => setIsMenuOpen(false)}
+          />
+          <div className="fixed inset-x-0 top-16 z-[59] max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-border bg-background shadow-xl md:hidden">
+            <nav className="container mx-auto flex flex-col gap-2 px-4 py-4">
+              <Link
+                href="/"
+                className="rounded-lg px-4 py-3 text-sm font-medium text-primary hover:bg-secondary min-h-[44px]"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Terminal
+              </Link>
+              <Link
+                href="/leaderboard"
+                className="rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground min-h-[44px]"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Leaderboard
+              </Link>
+              <Link href="/create" onClick={() => setIsMenuOpen(false)}>
+                <Button className="mt-1 min-h-[44px] w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+                  <Plus className="h-4 w-4" />
+                  Create Token
+                </Button>
+              </Link>
+              <Link
+                href="/portfolio"
+                className="rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground min-h-[44px]"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Portfolio
+              </Link>
+              <div className="mt-2 px-1 pb-6">
+                <ConnectButton label="Connect" showBalance={false} />
+              </div>
+            </nav>
+          </div>
+        </>
       )}
     </header>
   )

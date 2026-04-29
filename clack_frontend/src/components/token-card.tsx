@@ -2,7 +2,7 @@
 
 import type { Token } from '@/lib/ui-types'
 import { formatNumber, formatTimeAgo, formatTokenPrice } from '@/lib/format'
-import Image from 'next/image'
+import { TokenImage } from '@/components/token-image'
 import Link from 'next/link'
 import { Users, BarChart3, Clock } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -40,7 +40,7 @@ export function TokenCard({ token }: TokenCardProps) {
       >
         {/* Image Section */}
         <div className="relative aspect-square overflow-hidden">
-          <Image
+          <TokenImage
             src={token.image}
             alt={token.name}
             fill

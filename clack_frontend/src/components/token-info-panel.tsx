@@ -2,7 +2,7 @@
 
 import type { Token } from '@/lib/ui-types'
 import { formatAddress, formatNumber, formatTimeAgo, formatTokenPrice, formatMonAmount } from '@/lib/format'
-import Image from 'next/image'
+import { TokenImage } from '@/components/token-image'
 import { Copy, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -57,7 +57,7 @@ export function TokenInfoPanel({ token, totalTxns, buyCount, sellCount }: TokenI
 
         <div className="mb-3 flex items-start gap-2.5">
           <div className="relative h-10 w-10 overflow-hidden rounded-lg">
-            <Image src={token.image} alt={token.name} fill className="object-cover" />
+            <TokenImage src={token.image} alt={token.name} fill className="object-cover" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-foreground">{token.name}</p>

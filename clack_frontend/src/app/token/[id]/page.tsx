@@ -12,6 +12,7 @@ import type { Trade } from '@/lib/ui-types'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import Image from 'next/image'
+import { TokenImage } from '@/components/token-image'
 import Link from 'next/link'
 import { ArrowLeft, Copy, Share2, Star, ExternalLink, Search } from 'lucide-react'
 import { useDeathClock } from '@/hooks/use-death-clock'
@@ -220,33 +221,33 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           )}
           <div className="mb-4 rounded-xl border border-border bg-card/70 px-3 py-3 sm:px-4">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="flex min-w-0 items-center gap-3">
                 <Link
                   href="/"
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
+                  className="flex h-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </Link>
-                <div className="relative h-10 w-10 overflow-hidden rounded-full">
-                  <Image
-                    src={token.image}
-                    alt={token.name}
-                    fill
-                    className="object-cover"
-                  />
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
+                  <TokenImage src={token.image} alt={token.name} fill className="object-cover" />
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <h1 className="truncate text-lg font-bold text-foreground sm:text-xl">{token.name}</h1>
-                    <span className="text-sm text-muted-foreground">/ MON</span>
-                    <button className="text-muted-foreground transition-colors hover:text-foreground">
+                    <span className="shrink-0 text-sm text-muted-foreground">/ MON</span>
+                    <button
+                      type="button"
+                      className="text-muted-foreground transition-colors hover:text-foreground"
+                      aria-label="Search"
+                    >
                       <Search className="h-4 w-4" />
                     </button>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
                     <span>Token ID:</span>
                     <button
+                      type="button"
                       onClick={() => copyToClipboard(token.id)}
                       className="flex items-center gap-1 font-mono transition-colors hover:text-foreground"
                     >
@@ -255,53 +256,55 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                     </button>
                     <span className="hidden sm:inline">|</span>
                     <span>Created by</span>
-                    <div className="h-3 w-3 rounded-full bg-emerald-500" />
-                    <span className="font-mono">{token.creator.slice(0, 6)}...{token.creator.slice(-4)}</span>
+                    <div className="h-3 w-3 shrink-0 rounded-full bg-emerald-500" />
+                    <span className="truncate font-mono">
+                      {token.creator.slice(0, 6)}...{token.creator.slice(-4)}
+                    </span>
                     <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px]">AI</span>
                   </div>
                 </div>
               </div>
 
-              <div className="ml-auto flex items-center gap-3">
-                <div className="text-right">
-                  <p className="font-mono text-xl font-bold text-foreground sm:text-2xl">
+              <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
+                <div className="text-left md:text-right">
+                  <p className="font-mono text-lg font-bold text-foreground sm:text-xl md:text-2xl">
                     {displayMonPrice} MON
                   </p>
                   <p className="text-sm text-emerald-500">+64.27%</p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" className="h-9 w-9">
+                <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+                  <Button variant="outline" size="icon" className="h-11 min-h-[44px] min-w-[44px] sm:h-9 sm:min-h-0 sm:min-w-0">
                     <Share2 className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="icon" className="h-9 w-9">
+                  <Button variant="outline" size="icon" className="h-11 min-h-[44px] min-w-[44px] sm:h-9 sm:min-h-0 sm:min-w-0">
                     <ExternalLink className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="icon" className="h-9 w-9">
+                  <Button variant="outline" size="icon" className="h-11 min-h-[44px] min-w-[44px] sm:h-9 sm:min-h-0 sm:min-w-0">
                     <Star className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
-              <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2">
-                <p className="text-[11px] text-muted-foreground">Market Cap</p>
-                <p className="font-mono text-sm font-semibold text-foreground">{formatNumber(token.marketCap)}</p>
+            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="rounded-xl border border-border bg-secondary/40 p-3">
+                <p className="truncate text-xs text-muted-foreground">Market Cap</p>
+                <p className="truncate font-mono text-sm font-semibold text-foreground">{formatNumber(token.marketCap)}</p>
               </div>
-              <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2">
-                <p className="text-[11px] text-muted-foreground">Virtual Liquidity</p>
-                <p className="font-mono text-sm font-semibold text-foreground">
+              <div className="rounded-xl border border-border bg-secondary/40 p-3">
+                <p className="truncate text-xs text-muted-foreground">Virtual Liquidity</p>
+                <p className="truncate font-mono text-sm font-semibold text-foreground">
                   {formatMonAmount(token.poolBalanceMon, 4)} MON
                 </p>
               </div>
-              <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2">
-                <p className="text-[11px] text-muted-foreground">24h Volume</p>
-                <p className="font-mono text-sm font-semibold text-foreground">{formatNumber(token.volume24h)}</p>
+              <div className="rounded-xl border border-border bg-secondary/40 p-3">
+                <p className="truncate text-xs text-muted-foreground">24h Volume</p>
+                <p className="truncate font-mono text-sm font-semibold text-foreground">{formatNumber(token.volume24h)}</p>
               </div>
-              <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2">
-                <p className="text-[11px] text-muted-foreground">Creation Time</p>
-                <p className="font-mono text-sm font-semibold text-foreground">
+              <div className="rounded-xl border border-border bg-secondary/40 p-3">
+                <p className="truncate text-xs text-muted-foreground">Creation Time</p>
+                <p className="truncate font-mono text-sm font-semibold text-foreground">
                   {mounted ? formatTimeAgo(token.createdAt) : '--'}
                 </p>
               </div>
@@ -346,13 +349,18 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                 />
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                Created at {death.createdAtLabel} • Dies at {death.diesAtLabel}
+                <span className="hidden sm:inline">
+                  Created at {death.createdAtLabel} • Dies at {death.diesAtLabel}
+                </span>
+                <span className="sm:hidden">
+                  {death.createdAtLabel} → {death.diesAtLabel}
+                </span>
               </p>
             </div>
           </div>
 
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
-            <div className="space-y-4">
+          <div className="flex flex-col-reverse gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
+            <div className="min-w-0 space-y-4">
               <div className="relative">
                 <PriceChart
                   symbol={token.symbol}
@@ -370,7 +378,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
               <TradesTable trades={liveTrades} />
             </div>
 
-            <aside className="space-y-4 lg:sticky lg:top-20">
+            <aside className="min-w-0 space-y-4 lg:sticky lg:top-20">
               {isDead ? (
                 <div className="rounded-xl border border-border bg-card p-4">
                   <h3 className="mb-3 text-lg font-semibold text-red-500">💀 Final Results</h3>

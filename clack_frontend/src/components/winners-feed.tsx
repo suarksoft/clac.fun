@@ -1,6 +1,6 @@
 'use client'
 
-import Image from 'next/image'
+import { TokenImage } from '@/components/token-image'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api/client'
 import { toUiTrade } from '@/lib/api/mappers'
@@ -33,7 +33,7 @@ export function WinnersFeed() {
             >
               <div className="flex items-center gap-1.5">
                 <div className="relative h-7 w-7 overflow-hidden rounded-sm">
-                  <Image src={item.tokenImage} alt={item.tokenSymbol} fill className="object-cover" />
+                  <TokenImage src={item.tokenImage} alt={item.tokenSymbol} fill className="object-cover" />
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-[11px] font-semibold leading-tight text-white">{formatAddress(item.account)}</p>

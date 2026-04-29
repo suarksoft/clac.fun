@@ -4,7 +4,7 @@ import { Header } from '@/components/header'
 import { LiveTicker } from '@/components/live-ticker'
 import { Button } from '@/components/ui/button'
 import { Wallet, TrendingUp, TrendingDown, PieChart, History } from 'lucide-react'
-import Image from 'next/image'
+import { TokenImage } from '@/components/token-image'
 import Link from 'next/link'
 import {
   useAccount,
@@ -144,41 +144,41 @@ export default function PortfolioPage() {
       <LiveTicker />
 
       <main className="flex-1">
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto max-w-7xl px-4 py-8">
           {/* Portfolio Summary */}
-          <div className="mb-8 grid gap-4 md:grid-cols-4">
-            <div className="rounded-xl border border-border bg-card p-6">
-              <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground md:text-sm">
                 <PieChart className="h-4 w-4" />
                 Total Invested
               </div>
-              <div className="text-3xl font-bold text-foreground">
+              <div className="text-xl font-bold text-foreground md:text-3xl">
                 {formatUsd(totalInvested)}
               </div>
             </div>
-            <div className="rounded-xl border border-border bg-card p-6">
-              <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground md:text-sm">
                 <PieChart className="h-4 w-4" />
                 Current Value
               </div>
-              <div className="text-3xl font-bold text-foreground">{formatUsd(totalValue)}</div>
+              <div className="text-xl font-bold text-foreground md:text-3xl">{formatUsd(totalValue)}</div>
             </div>
-            <div className="rounded-xl border border-border bg-card p-6">
-              <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground md:text-sm">
                 {totalPnl >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                 PnL (%)
               </div>
-              <div className={`text-3xl font-bold ${totalPnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+              <div className={`text-xl font-bold md:text-3xl ${totalPnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                 {pnlPercent >= 0 ? '+' : ''}
                 {pnlPercent.toFixed(2)}%
               </div>
             </div>
-            <div className="rounded-xl border border-border bg-card p-6">
-              <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground md:text-sm">
                 <History className="h-4 w-4" />
                 Best Trade (Xx)
               </div>
-              <div className="text-3xl font-bold text-foreground">
+              <div className="text-xl font-bold text-foreground md:text-3xl">
                 {bestTrade ? `${Math.max(weiToMon(bestTrade.monAmount), 1).toFixed(2)}x` : '--'}
               </div>
             </div>
@@ -189,8 +189,9 @@ export default function PortfolioPage() {
             <div className="border-b border-border p-4">
               <h2 className="text-lg font-semibold text-foreground">Active Positions</h2>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-[720px] w-full">
                 <thead>
                   <tr className="border-b border-border text-left text-sm text-muted-foreground">
                     <th className="px-6 py-4">Token</th>
@@ -202,12 +203,19 @@ export default function PortfolioPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {holdings.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                        No active positions.
+                      </td>
+                    </tr>
+                  )}
                   {holdings.map((holding) => (
                     <tr key={holding.id} className="border-b border-border/50">
                       <td className="px-6 py-4">
                         <Link href={`/token/${holding.id}`} className="flex items-center gap-3 hover:opacity-80">
                           <div className="relative h-10 w-10 overflow-hidden rounded-full">
-                            <Image
+                            <TokenImage
                               src={resolveTokenImageUrl(holding.token.imageURI)}
                               alt={holding.token.name}
                               fill
@@ -250,6 +258,63 @@ export default function PortfolioPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            <div className="space-y-3 p-3 md:hidden">
+              {holdings.length === 0 && (
+                <p className="py-6 text-center text-sm text-muted-foreground">No active positions.</p>
+              )}
+              {holdings.map((holding) => (
+                <div key={holding.id} className="rounded-xl border border-border bg-secondary/20 p-4">
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <Link href={`/token/${holding.tokenId}`} className="flex min-w-0 flex-1 items-center gap-3">
+                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
+                        <TokenImage
+                          src={resolveTokenImageUrl(holding.token.imageURI)}
+                          alt={holding.token.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="mr-2 rounded bg-primary/20 px-1.5 py-0.5 text-xs font-bold text-primary">
+                          {holding.token.symbol}
+                        </span>
+                        <p className="truncate font-medium text-foreground">{holding.token.name}</p>
+                      </div>
+                    </Link>
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                      {formatTimeLeft(holding.token.createdAt, holding.token.duration)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 border-t border-border pt-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Balance</p>
+                      <p className="font-mono font-medium text-foreground">
+                        {holding.uiBalance.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Value</p>
+                      <p className="font-mono font-medium text-foreground">{formatUsd(holding.uiValue)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">P&L</p>
+                      <p className={`font-mono font-medium ${holding.uiPnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {holding.uiPnl >= 0 ? '+' : ''}
+                        {formatUsd(holding.uiPnl)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex justify-end">
+                    <Link href={`/token/${holding.tokenId}`}>
+                      <Button variant="outline" size="sm" className="min-h-[44px] border-emerald-500/50 px-6 text-emerald-500 hover:bg-emerald-500/10">
+                        Sell
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -300,7 +365,7 @@ export default function PortfolioPage() {
               <h2 className="text-lg font-semibold text-foreground">Trade History</h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="min-w-[420px] w-full">
                 <thead>
                   <tr className="border-b border-border text-left text-sm text-muted-foreground">
                     <th className="px-6 py-4">Type</th>
