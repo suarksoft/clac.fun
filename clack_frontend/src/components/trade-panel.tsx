@@ -40,6 +40,7 @@ export function TradePanel({
   const [amount, setAmount] = useState('')
   const [quote, setQuote] = useState<string | null>(null)
   const [errorText, setErrorText] = useState<string | null>(null)
+  const [txError, setTxError] = useState<string | null>(null)
   const [walletTokenBalance, setWalletTokenBalance] = useState(0)
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
@@ -87,6 +88,7 @@ export function TradePanel({
     setAmount('')
     setQuote(null)
     setErrorText(null)
+    setTxError(null)
   }, [activeTab])
 
   useEffect(() => {
@@ -150,6 +152,25 @@ export function TradePanel({
     }
   }, [txReceipt.isSuccess, onTradeSuccess])
 
+  useEffect(() => {
+    if (!txError) return
+    const timer = setTimeout(() => setTxError(null), 5000)
+    return () => clearTimeout(timer)
+  }, [txError])
+
+  const parseTxError = (error: unknown): string => {
+    const msg = error instanceof Error ? error.message : String(error)
+    if (/user rejected|user denied|rejected the request/i.test(msg)) return 'Transaction rejected.'
+    if (/insufficient funds/i.test(msg)) return 'Insufficient MON balance.'
+    if (/Min buy/i.test(msg)) return 'Minimum buy is 0.01 MON.'
+    if (/cooldown/i.test(msg)) return 'Buy cooldown active. Wait a moment.'
+    if (/Max holding/i.test(msg)) return 'Whale limit: max 10% of supply per wallet.'
+    if (/token.*dead|trading.*disabled|CLAC.D/i.test(msg)) return 'This token has expired.'
+    if (/slippage|PRICE_IMPACT/i.test(msg)) return 'Price moved too much. Try again.'
+    if (/insufficient.*balance|balance.*insufficient/i.test(msg)) return `Insufficient ${tokenSymbol} balance.`
+    return 'Transaction failed. Please try again.'
+  }
+
   const executeTrade = async () => {
     if (isDead) return
     if (!isConnected) {
@@ -202,7 +223,8 @@ export function TradePanel({
       }
       setAmount('')
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : 'Transaction failed.')
+      console.error('Transaction error:', error)
+      setTxError(parseTxError(error))
     }
   }
 
@@ -212,8 +234,8 @@ export function TradePanel({
       return
     }
     if (percent === 100) {
-      // Max sattiinda fee yuvarlamasi nedeniyle revert yememek icin %99 kullan.
-      setAmount(((walletTokenBalance * 99) / 100).toFixed(6))
+      // Cap at 98% to avoid revert from rounding in the bonding curve sell path.
+      setAmount(((walletTokenBalance * 98) / 100).toFixed(6))
       return
     }
     const value = (walletTokenBalance * percent) / 100
@@ -372,6 +394,9 @@ export function TradePanel({
       )}
       {errorText && (
         <p className="mt-2 text-center text-xs text-red-400">{errorText}</p>
+      )}
+      {txError && (
+        <p className="mt-2 text-center text-sm text-red-400">{txError}</p>
       )}
       {isWrongChain && (
         <p className="mt-2 text-center text-xs text-amber-400">

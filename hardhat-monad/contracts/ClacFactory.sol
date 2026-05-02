@@ -32,11 +32,11 @@ contract ClacFactory is ReentrancyGuard {
     //                CONSTANTS
     // ═══════════════════════════════════════════
 
-    uint256 public constant PROTOCOL_FEE_BPS = 200;   // 2%
-    uint256 public constant CREATOR_FEE_BPS = 100;     // 1%
-    uint256 public constant DEATH_TAX_BPS = 500;       // 5%
-    uint256 public constant PRO_RATA_BPS = 6500;       // 65%
-    uint256 public constant LOTTERY_BPS = 3500;         // 35%
+    uint256 public constant PROTOCOL_FEE_BPS = 100;    // 1% per trade
+    uint256 public constant CREATOR_FEE_BPS = 50;      // 0.5% per trade
+    uint256 public constant DEATH_TAX_BPS = 300;       // 3% of remaining pool at death
+    uint256 public constant PRO_RATA_BPS = 7700;       // 77% of distributable
+    uint256 public constant LOTTERY_BPS = 2300;        // 23% of distributable
     uint256 public constant LOTTERY_WINNERS = 3;
     uint256 public constant SNIPER_BLOCKS = 5;
     uint256 public constant MAX_BUY_BPS_EARLY = 100;   // 1%
@@ -47,6 +47,9 @@ contract ClacFactory is ReentrancyGuard {
     uint256 public constant BPS = 10000;
     uint256 public constant MAX_POOL = 10_000 ether;
     uint256 public constant MAX_SUPPLY = 1_000_000_000 ether; // 1B tokens
+    uint256 public constant MIN_BUY = 0.01 ether;
+    uint256 public constant BUY_COOLDOWN_BLOCKS = 2;
+    uint256 public constant MAX_HOLDING_BPS = 1000;    // 10% of max supply
 
     // ═══════════════════════════════════════════
     //              STATE VARIABLES
@@ -65,6 +68,7 @@ contract ClacFactory is ReentrancyGuard {
     mapping(uint256 => mapping(address => bool)) public isHolder;
     mapping(uint256 => mapping(address => uint256)) public claimable;
     mapping(uint256 => uint256) public creationBlock;
+    mapping(uint256 => mapping(address => uint256)) public lastBuyBlock;
 
     // ═══════════════════════════════════════════
     //                 EVENTS
@@ -162,7 +166,15 @@ contract ClacFactory is ReentrancyGuard {
     // ═══════════════════════════════════════════
 
     function buy(uint256 tokenId, uint256 minTokens) external payable nonReentrant tokenAlive(tokenId) {
-        require(msg.value > 0, "Send MON to buy");
+        require(msg.value >= MIN_BUY, "Min buy 0.01 MON");
+
+        // Cooldown — same wallet must wait BUY_COOLDOWN_BLOCKS between buys
+        require(
+            block.number > lastBuyBlock[tokenId][msg.sender] + BUY_COOLDOWN_BLOCKS,
+            "Buy cooldown active"
+        );
+        lastBuyBlock[tokenId][msg.sender] = block.number;
+
         Token storage t = tokens[tokenId];
         require(t.poolBalance + msg.value <= MAX_POOL, "Pool cap reached");
 
@@ -174,11 +186,18 @@ contract ClacFactory is ReentrancyGuard {
         require(tokenAmount >= minTokens, "Slippage exceeded");
         require(t.virtualSupply + tokenAmount <= MAX_SUPPLY, "Max supply reached");
 
-        // Anti-sniper
+        // Anti-sniper — first 5 blocks: max 1% of supply per address
         if (block.number < creationBlock[tokenId] + SNIPER_BLOCKS) {
             uint256 maxBuy = (MAX_SUPPLY * MAX_BUY_BPS_EARLY) / BPS;
             require(balances[tokenId][msg.sender] + tokenAmount <= maxBuy, "Anti-sniper: max buy exceeded");
         }
+
+        // Whale limit — single wallet cannot hold more than 10% of max supply
+        uint256 maxHolding = (MAX_SUPPLY * MAX_HOLDING_BPS) / BPS;
+        require(
+            balances[tokenId][msg.sender] + tokenAmount <= maxHolding,
+            "Max holding 10% exceeded"
+        );
 
         t.virtualSupply += tokenAmount;
         t.poolBalance += netAmount;
@@ -206,7 +225,10 @@ contract ClacFactory is ReentrancyGuard {
         Token storage t = tokens[tokenId];
 
         uint256 grossRevenue = BondingCurve.getSellRevenue(t.virtualSupply, tokenAmount, k);
-        require(grossRevenue <= t.poolBalance, "Insufficient pool");
+        // Cap at pool balance so MAX sell never reverts — user gets whatever is in the pool
+        if (grossRevenue > t.poolBalance) {
+            grossRevenue = t.poolBalance;
+        }
 
         uint256 protocolFee = (grossRevenue * PROTOCOL_FEE_BPS) / BPS;
         uint256 creatorFee = (grossRevenue * CREATOR_FEE_BPS) / BPS;

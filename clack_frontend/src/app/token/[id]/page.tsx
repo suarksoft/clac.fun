@@ -384,15 +384,15 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                   <h3 className="mb-3 text-lg font-semibold text-red-500">💀 Final Results</h3>
                   {(() => {
                     const poolAtDeath = token.poolBalanceMon
-                    const deathTax = poolAtDeath * 0.05
-                    const proRata = poolAtDeath * 0.65
-                    const lottery = poolAtDeath * 0.3
+                    const deathTax = poolAtDeath * 0.03
+                    const proRata = poolAtDeath * 0.77
+                    const lottery = poolAtDeath * 0.20
                     return (
                       <div className="space-y-2 font-mono text-sm">
                         <div className="flex justify-between"><span className="text-muted-foreground">Pool at death:</span><span>{formatMonAmount(poolAtDeath, 4)} MON</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Death tax (5%):</span><span>{formatMonAmount(deathTax, 4)} MON</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Pro-rata (65%):</span><span>{formatMonAmount(proRata, 4)} MON</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Lottery (30%):</span><span>{formatMonAmount(lottery, 4)} MON</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Death tax (3%):</span><span>{formatMonAmount(deathTax, 4)} MON</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Pro-rata (77%):</span><span>{formatMonAmount(proRata, 4)} MON</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Lottery (20%):</span><span>{formatMonAmount(lottery, 4)} MON</span></div>
                       </div>
                     )
                   })()}

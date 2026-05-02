@@ -650,10 +650,10 @@ export default function CreateTokenPage() {
                 {/* Fee breakdown */}
                 <div className="mt-4 space-y-2">
                   {[
-                    '2% protocol fee per trade',
-                    '1% creator fee per trade',
-                    '5% death tax when token expires',
-                    '30% lottery to 3 random holders',
+                    '1% protocol fee per trade',
+                    '0.5% creator fee per trade',
+                    '3% death tax when token expires',
+                    '20% lottery to 3 random holders',
                   ].map((item) => (
                     <div key={item} className="flex items-center gap-2 text-xs text-gray-600">
                       <span className="h-1 w-1 rounded-full bg-gray-700" />
