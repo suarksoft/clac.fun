@@ -451,6 +451,7 @@ export class BlockchainService implements OnModuleInit {
       monAmount: ethers.formatEther(monAmount),
       newPrice: ethers.formatEther(newPrice),
       txHash,
+      timestamp: Math.floor(Date.now() / 1000),
     });
 
     this.logger.log(

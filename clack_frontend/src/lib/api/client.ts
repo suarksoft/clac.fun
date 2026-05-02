@@ -2,6 +2,15 @@ import { io } from 'socket.io-client'
 import type { BackendHolder, BackendPortfolio, BackendToken, BackendTrade } from './types'
 import { publicEnv } from '@/lib/env'
 
+export interface CandleData {
+  time: number
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+
 const BACKEND_URL = publicEnv.NEXT_PUBLIC_BACKEND_URL
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -27,6 +36,8 @@ export const apiClient = {
   getWinners: () => fetchJson<BackendTrade[]>('/api/trades/winners'),
   getRecentTrades: () => fetchJson<BackendTrade[]>('/api/trades/recent'),
   getPortfolio: (address: string) => fetchJson<BackendPortfolio>(`/api/portfolio/${address}`),
+  getCandles: (tokenId: number, interval = '1m', limit = 200) =>
+    fetchJson<CandleData[]>(`/api/trades/candles/${tokenId}?interval=${interval}&limit=${limit}`),
 }
 
 export function createSocketClient() {

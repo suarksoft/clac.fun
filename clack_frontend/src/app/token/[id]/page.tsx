@@ -363,9 +363,9 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
             <div className="min-w-0 space-y-4">
               <div className="relative">
                 <PriceChart
+                  tokenId={resolvedTokenId}
                   symbol={token.symbol}
                   currentPrice={displayPrice || token.price}
-                  trades={liveTrades}
                 />
                 {isDead && (
                   <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/55 backdrop-blur-[1px]">
