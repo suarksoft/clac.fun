@@ -101,8 +101,9 @@ export default function CreateTokenPage() {
       tokenName.trim().length <= 32 &&
       tokenSymbol.trim().length > 0 &&
       tokenSymbol.trim().length <= 8 &&
+      !!(imageFile || imageURI.trim()) &&
       isDurationValid,
-    [tokenName, tokenSymbol, isDurationValid],
+    [tokenName, tokenSymbol, imageFile, imageURI, isDurationValid],
   )
   const isBusy = isUploading || isPending || isConfirming
 
@@ -201,6 +202,10 @@ export default function CreateTokenPage() {
     setSubmitted(true)
     if (!tokenName.trim() || !tokenSymbol.trim()) {
       toast.error('Token name and symbol are required')
+      return
+    }
+    if (!imageFile && !imageURI.trim()) {
+      toast.error('Please upload a token image')
       return
     }
     if (!isConnected) { toast.error('Connect your wallet first'); return }
@@ -376,7 +381,7 @@ export default function CreateTokenPage() {
                 {/* Step 3 — Image */}
                 <div className={`transition-opacity duration-300 ${getActiveStep() >= 3 ? 'opacity-100' : 'opacity-40'}`}>
                   <label className="mb-2 block text-sm font-medium text-gray-300">
-                    Token image <span className="text-gray-600">(optional)</span>
+                    Token image <span className="text-red-400">*</span>
                   </label>
 
                   <div
@@ -384,7 +389,7 @@ export default function CreateTokenPage() {
                     className={`group relative cursor-pointer overflow-hidden rounded-xl border-2 border-dashed text-center transition-all duration-300 ${
                       imagePreview
                         ? 'border-violet-500/30 p-2'
-                        : 'border-gray-800 p-8 hover:border-violet-500/30 hover:bg-violet-500/5'
+                        : `${submitted && !imagePreview ? 'border-red-500/50' : 'border-gray-800'} p-8 hover:border-violet-500/30 hover:bg-violet-500/5`
                     }`}
                   >
                     {imagePreview ? (

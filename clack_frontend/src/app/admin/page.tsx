@@ -64,6 +64,7 @@ export default function AdminPage() {
   const [adminTokens, setAdminTokens] = useState<AdminTokenRow[]>([])
   const [isTokensLoading, setIsTokensLoading] = useState(false)
   const [deletingTokenId, setDeletingTokenId] = useState<number | null>(null)
+  const [createSubmitAttempted, setCreateSubmitAttempted] = useState(false)
   const [adminPasswordInput, setAdminPasswordInput] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false)
@@ -324,6 +325,7 @@ export default function AdminPage() {
 
   const handleAdminCreate = async (e: FormEvent) => {
     e.preventDefault()
+    setCreateSubmitAttempted(true)
 
     try {
       await ensureWalletAndChain()
@@ -550,8 +552,15 @@ export default function AdminPage() {
               <Input value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} maxLength={8} />
             </div>
             <div className="space-y-2">
-              <Label>Image URL</Label>
-              <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} type="url" />
+              <Label>
+                Image URL <span className="text-red-400">*</span>
+              </Label>
+              <Input
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                type="url"
+                className={createSubmitAttempted && !imageUrl.trim() ? 'border-red-500' : ''}
+              />
               <div className="flex flex-wrap items-center gap-2">
                 <label className="inline-flex cursor-pointer items-center rounded-md border border-border px-3 py-2 text-sm hover:bg-secondary">
                   {isUploadingImage ? 'Yukleniyor...' : 'Fotograf Yukle'}
