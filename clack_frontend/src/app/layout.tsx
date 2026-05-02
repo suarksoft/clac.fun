@@ -31,6 +31,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
+/** Root layout — clac.fun app shell. */
 export default function RootLayout({
   children,
 }: Readonly<{

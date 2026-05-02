@@ -7,6 +7,7 @@ import { mkdirSync } from 'fs';
 import express from 'express';
 import { AppModule } from './app.module';
 
+/** NestJS bootstrap — clac.fun API. */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const uploadsDir = join(process.cwd(), 'uploads');
