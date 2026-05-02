@@ -40,6 +40,9 @@ export function PriceChart({ tokenId, symbol, currentPrice }: PriceChartProps) {
   const isChartReadyRef = useRef(false)
   // Candles stored in a ref for WebSocket handlers to access without stale closure
   const candlesRef = useRef<CandleData[]>([])
+  // Last known close price — used to push forward flat candles when no trades arrive
+  const lastPriceRef = useRef<number>(0)
+  const liveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const [selectedTimeframe, setSelectedTimeframe] = useState('1m')
   const [ohlc, setOhlc] = useState<OhlcState>({ open: 0, high: 0, low: 0, close: 0, change: 0 })
@@ -175,6 +178,7 @@ export function PriceChart({ tokenId, symbol, currentPrice }: PriceChartProps) {
       if (!candleSeriesRef.current || !volumeSeriesRef.current) return
 
       const last = candles[candles.length - 1]
+      lastPriceRef.current = last.close
       setOhlc({
         open: last.open,
         high: last.high,
@@ -217,6 +221,57 @@ export function PriceChart({ tokenId, symbol, currentPrice }: PriceChartProps) {
     loadCandles()
   }, [loadCandles])
 
+  // ── Live timer — push a flat candle each new bucket even when no trades arrive ─
+  useEffect(() => {
+    if (liveTimerRef.current) {
+      clearInterval(liveTimerRef.current)
+      liveTimerRef.current = null
+    }
+
+    const bucketSize = INTERVAL_SECONDS[selectedTimeframe] ?? 60
+    let lastSeenBucket = Math.floor(Date.now() / 1000 / bucketSize) * bucketSize
+
+    liveTimerRef.current = setInterval(() => {
+      const now = Math.floor(Date.now() / 1000)
+      const currentBucket = Math.floor(now / bucketSize) * bucketSize
+      if (currentBucket <= lastSeenBucket) return
+      lastSeenBucket = currentBucket
+
+      const price = lastPriceRef.current
+      if (price <= 0 || !candleSeriesRef.current || !volumeSeriesRef.current) return
+
+      candleSeriesRef.current.update({
+        time: currentBucket as UTCTimestamp,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+      })
+      volumeSeriesRef.current.update({
+        time: currentBucket as UTCTimestamp,
+        value: 0,
+        color: 'rgba(100,100,100,0.1)',
+      })
+
+      const newCandle: CandleData = {
+        time: currentBucket,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+        volume: 0,
+      }
+      candlesRef.current = [...candlesRef.current, newCandle]
+    }, 5000)
+
+    return () => {
+      if (liveTimerRef.current) {
+        clearInterval(liveTimerRef.current)
+        liveTimerRef.current = null
+      }
+    }
+  }, [selectedTimeframe])
+
   // ── Real-time candle update via WebSocket ────────────────────────────────────
   useEffect(() => {
     const socket = createSocketClient()
@@ -238,6 +293,7 @@ export function PriceChart({ tokenId, symbol, currentPrice }: PriceChartProps) {
         const price = parseFloat(payload.newPrice)
         const volume = parseFloat(payload.monAmount)
         if (!Number.isFinite(price) || price <= 0) return
+        lastPriceRef.current = price
 
         const now = payload.timestamp ?? Math.floor(Date.now() / 1000)
         const candleTime =

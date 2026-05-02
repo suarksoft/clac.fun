@@ -109,6 +109,7 @@ export class TradesService {
     );
 
     // Fill gaps with flat candles (previous close) so chart has no discontinuities
+    // Also normalise each real candle's open to the previous close to prevent wicks/gaps
     const filled: CandleData[] = [];
     for (let i = 0; i < sorted.length; i++) {
       if (i > 0) {
@@ -125,8 +126,39 @@ export class TradesService {
             volume: 0,
           });
         }
+        // Normalise open to previous close so there are no price gaps
+        const raw = sorted[i];
+        const normOpen = filled[filled.length - 1].close;
+        filled.push({
+          time: raw.time,
+          open: normOpen,
+          high: Math.max(raw.high, normOpen),
+          low: Math.min(raw.low, normOpen),
+          close: raw.close,
+          volume: raw.volume,
+        });
+      } else {
+        filled.push(sorted[i]);
       }
-      filled.push(sorted[i]);
+    }
+
+    // Extend to current bucket with flat candles so the chart advances in real time
+    if (filled.length > 0) {
+      const now = Math.floor(Date.now() / 1000);
+      const currentBucket = Math.floor(now / intervalSeconds) * intervalSeconds;
+      let prevTime = filled[filled.length - 1].time;
+      const prevClose = filled[filled.length - 1].close;
+      while (prevTime + intervalSeconds <= currentBucket) {
+        prevTime += intervalSeconds;
+        filled.push({
+          time: prevTime,
+          open: prevClose,
+          high: prevClose,
+          low: prevClose,
+          close: prevClose,
+          volume: 0,
+        });
+      }
     }
 
     return filled.slice(-limit);
