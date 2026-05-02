@@ -2,9 +2,6 @@
 
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { Header } from '@/components/header'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Spinner } from '@/components/ui/spinner'
 import {
   useAccount,
@@ -20,7 +17,6 @@ import { publicEnv } from '@/lib/env'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import Image from 'next/image'
 
 export default function CreateTokenPage() {
   const [tokenName, setTokenName] = useState('')
@@ -31,13 +27,14 @@ export default function CreateTokenPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [selectedDuration, setSelectedDuration] = useState(21600)
   const [newTokenId, setNewTokenId] = useState<string | null>(null)
+  const [submitted, setSubmitted] = useState(false)
 
   const durations = [
     {
       value: 21600,
       label: '6 Hours',
       icon: '⚡',
-      desc: 'Maximum intensity',
+      desc: 'Max intensity',
       recommended: true,
     },
     {
@@ -165,6 +162,8 @@ export default function CreateTokenPage() {
   }
 
   const handleCreate = async () => {
+    setSubmitted(true)
+
     if (!tokenName.trim() || !tokenSymbol.trim()) {
       toast.error('Token name and symbol are required')
       return
@@ -245,72 +244,115 @@ export default function CreateTokenPage() {
     })
   }
 
+  const clearImage = () => {
+    if (imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview)
+    setImageFile(null)
+    setImagePreview('')
+    setImageURI('')
+  }
+
+  const isBusy = isUploading || isPending || isConfirming
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-gray-950">
       <Header />
 
-      <main className="flex-1 px-4 py-10">
-        <div className="mx-auto w-full max-w-[480px] rounded-2xl border border-zinc-800 bg-zinc-950/70 p-6 shadow-2xl">
-          <div className="mb-6 text-center">
-            <h1 className="text-2xl font-bold text-white">🚀 Create Token</h1>
-            <p className="mt-1 text-sm text-zinc-400">
-              Launch your token on clac.fun
-            </p>
+      <main className="flex-1 px-4 pb-20 pt-8">
+        <div className="mx-auto max-w-lg">
+
+          {/* Header */}
+          <div className="mb-8 text-center">
+            <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-purple-800">
+              <span className="text-3xl">🫰</span>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">Create Token</h1>
+            <p className="text-gray-400">Every token has a death clock. Make it count.</p>
           </div>
 
-          <div className="space-y-4">
+          {/* Form Card */}
+          <div className="space-y-6 rounded-2xl border border-gray-800 bg-gray-900/50 p-6 backdrop-blur-sm">
+
+            {/* Token Name */}
             <div className="space-y-2">
-              <Label htmlFor="token-name" className="text-zinc-200">
-                Token Name *
-              </Label>
-              <Input
-                id="token-name"
-                value={tokenName}
-                maxLength={32}
-                onChange={(e) => setTokenName(e.target.value)}
+              <label className="flex items-center gap-1 text-sm font-medium text-gray-300">
+                Token Name <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
                 placeholder="e.g., Moon Shot"
-                className="border-zinc-700 bg-zinc-900 text-white"
+                value={tokenName}
+                onChange={(e) => setTokenName(e.target.value)}
+                maxLength={32}
+                className={`w-full rounded-xl border bg-gray-800/50 px-4 py-3 text-white placeholder-gray-500 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500 ${
+                  submitted && !tokenName.trim()
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-gray-700 focus:border-violet-500'
+                }`}
               />
+              <p className={`text-right text-xs ${tokenName.length > 28 ? 'text-red-400' : 'text-gray-600'}`}>
+                {tokenName.length}/32
+              </p>
             </div>
 
+            {/* Token Symbol */}
             <div className="space-y-2">
-              <Label htmlFor="token-symbol" className="text-zinc-200">
-                Token Symbol *
-              </Label>
-              <Input
-                id="token-symbol"
-                value={tokenSymbol}
-                maxLength={8}
-                onChange={(e) => setTokenSymbol(e.target.value.toUpperCase())}
+              <label className="flex items-center gap-1 text-sm font-medium text-gray-300">
+                Token Symbol <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
                 placeholder="e.g., MOON"
-                className="border-zinc-700 bg-zinc-900 text-white uppercase"
+                value={tokenSymbol}
+                onChange={(e) => setTokenSymbol(e.target.value.toUpperCase())}
+                maxLength={8}
+                className={`w-full rounded-xl border bg-gray-800/50 px-4 py-3 font-mono tracking-wider text-white uppercase placeholder-gray-500 transition-all focus:outline-none focus:ring-1 focus:ring-violet-500 ${
+                  submitted && !tokenSymbol.trim()
+                    ? 'border-red-500 focus:border-red-500'
+                    : 'border-gray-700 focus:border-violet-500'
+                }`}
               />
+              <p className={`text-right text-xs ${tokenSymbol.length > 6 ? 'text-red-400' : 'text-gray-600'}`}>
+                {tokenSymbol.length}/8
+              </p>
             </div>
 
+            <div className="border-t border-gray-800" />
+
+            {/* Token Image */}
             <div className="space-y-2">
-              <Label className="text-zinc-200">Token Image</Label>
-              <button
-                type="button"
+              <label className="text-sm font-medium text-gray-300">Token Image</label>
+
+              {/* Upload Zone */}
+              <div
                 onClick={() => document.getElementById('imageInput')?.click()}
-                className="w-full cursor-pointer rounded-xl border-2 border-dashed border-zinc-700 p-6 text-center transition-colors hover:border-violet-500"
+                className="group relative cursor-pointer rounded-xl border-2 border-dashed border-gray-700 p-8 text-center transition-all duration-300 hover:border-violet-500/50 hover:bg-violet-500/5"
               >
                 {imagePreview ? (
-                  <Image
-                    src={imagePreview}
-                    alt="Preview"
-                    width={96}
-                    height={96}
-                    unoptimized
-                    className="mx-auto mb-2 rounded-xl object-cover"
-                  />
+                  <div className="relative inline-block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="mx-auto h-28 w-28 animate-pulse rounded-2xl object-cover ring-2 ring-violet-500/30"
+                    />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); clearImage() }}
+                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs text-white hover:bg-red-400"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ) : (
-                  <div className="text-zinc-500">
-                    <span className="text-3xl">📷</span>
-                    <p className="mt-2 text-sm">Click to upload image</p>
-                    <p className="text-xs">PNG, JPG, GIF, WEBP — Max 5MB</p>
+                  <div className="text-gray-500 transition-colors group-hover:text-gray-400">
+                    <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl bg-gray-800 transition-colors group-hover:bg-gray-700">
+                      <span className="text-2xl">📷</span>
+                    </div>
+                    <p className="text-sm font-medium">Click to upload image</p>
+                    <p className="mt-1 text-xs text-gray-600">PNG, JPG, GIF, WEBP — Max 5MB</p>
                   </div>
                 )}
-              </button>
+              </div>
+
               <input
                 id="imageInput"
                 type="file"
@@ -318,10 +360,17 @@ export default function CreateTokenPage() {
                 onChange={handleFileChange}
                 className="hidden"
               />
-              <p className="text-center text-xs text-zinc-500">— or paste URL —</p>
-              <Input
-                id="token-image"
+
+              {/* URL Alternative */}
+              <div className="my-3 flex items-center gap-3">
+                <div className="flex-1 border-t border-gray-800" />
+                <span className="text-xs text-gray-600">or paste URL</span>
+                <div className="flex-1 border-t border-gray-800" />
+              </div>
+
+              <input
                 type="text"
+                placeholder="https://example.com/image.png"
                 value={imageURI}
                 onChange={(e) => {
                   const v = e.target.value
@@ -332,17 +381,19 @@ export default function CreateTokenPage() {
                     return v.trim().startsWith('http') ? v.trim() : ''
                   })
                 }}
-                placeholder="https://example.com/image.png"
-                className="border-zinc-700 bg-zinc-900 text-white"
+                className="w-full rounded-xl border border-gray-700 bg-gray-800/50 px-4 py-3 text-sm text-white placeholder-gray-500 transition-all focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               />
-              <p className="text-xs text-zinc-500">
-                Optional. Remote URLs are copied to Cloudinary when possible.
-              </p>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-zinc-200">Duration *</Label>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="border-t border-gray-800" />
+
+            {/* Duration Selector */}
+            <div className="space-y-3">
+              <label className="flex items-center gap-1 text-sm font-medium text-gray-300">
+                Duration <span className="text-red-400">*</span>
+              </label>
+
+              <div className="grid grid-cols-3 gap-3">
                 {durations.map((d) => {
                   const isSelected = selectedDuration === d.value
                   return (
@@ -350,93 +401,139 @@ export default function CreateTokenPage() {
                       key={d.value}
                       type="button"
                       onClick={() => setSelectedDuration(d.value)}
-                      className={`relative rounded-xl border p-3 text-left transition-all ${
+                      className={`relative rounded-xl border-2 p-4 text-center transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
                         isSelected
-                          ? 'border-violet-400 bg-violet-500/10 shadow-[0_0_20px_rgba(139,92,246,0.28)]'
-                          : 'border-zinc-700 bg-zinc-900 text-zinc-300'
+                          ? 'border-violet-500 bg-violet-500/10 shadow-lg shadow-violet-500/10'
+                          : 'border-gray-700 bg-gray-800/30 hover:border-gray-600 hover:bg-gray-800/50'
                       }`}
                     >
-                      {d.recommended && (
-                        <span className="absolute -top-2 right-2 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-semibold text-white">
-                          Recommended
-                        </span>
+                      {isSelected && (
+                        <div className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-violet-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          SELECTED
+                        </div>
                       )}
-                      <div className="text-xl">{d.icon}</div>
-                      <p className="mt-1 font-semibold">{d.label}</p>
-                      <p className="text-xs text-zinc-400">{d.desc}</p>
+                      {d.recommended && !isSelected && (
+                        <div className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-green-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                          BEST
+                        </div>
+                      )}
+                      <div className="mb-1 text-2xl">{d.icon}</div>
+                      <div className="text-sm font-bold text-white">{d.label}</div>
+                      <div className="mt-0.5 text-xs text-gray-500">{d.desc}</div>
                     </button>
                   )
                 })}
               </div>
             </div>
 
-            <div className="mb-1 text-center text-sm text-zinc-400">
-              <span className="font-bold text-white">Creation fee: 10 MON</span>
-              <br />
-              This fee is sent to the protocol treasury.
+            <div className="border-t border-gray-800" />
+
+            {/* Fee Info */}
+            <div className="rounded-xl border border-gray-800 bg-gray-800/30 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">💎</span>
+                  <span className="text-sm text-gray-400">Creation Fee</span>
+                </div>
+                <span className="font-mono text-lg font-bold text-white">10 MON</span>
+              </div>
+              <p className="mt-2 text-xs text-gray-600">
+                Fee is sent to the protocol treasury. Your token goes live immediately.
+              </p>
             </div>
 
-            {!isConnected && (
-              <Button
-                disabled
-                className="w-full cursor-not-allowed py-6 text-base opacity-50"
-              >
-                Connect Wallet to Create
-              </Button>
-            )}
-
-            {isConnected && !isPending && !isConfirming && !isSuccess && (
-              <Button
-                onClick={() => void handleCreate()}
-                disabled={!isFormValid || isWrongChain || isUploading}
-                className="w-full bg-violet-600 py-6 text-base text-white hover:bg-violet-500 disabled:opacity-50"
-              >
-                {isUploading ? '📤 Uploading image...' : '🚀 Launch Token (10 MON)'}
-              </Button>
-            )}
-
-            {isPending && (
-              <Button disabled className="w-full py-6 text-base opacity-50">
-                ⏳ Waiting for wallet...
-              </Button>
-            )}
-
-            {isConfirming && (
-              <Button disabled className="w-full gap-2 py-6 text-base opacity-50">
-                <Spinner />
-                Creating token...
-              </Button>
-            )}
-
-            {isSuccess && (
-              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-center text-sm text-emerald-400">
-                ✅ Token created successfully!
-                {newTokenId ? (
-                  <div className="mt-1">
-                    <Link className="underline hover:text-emerald-300" href={`/token/${newTokenId}`}>
-                      View your token →
-                    </Link>
-                  </div>
-                ) : null}
+            {/* Wrong chain warning */}
+            {isWrongChain && isConnected && !isPending && !isConfirming && !isSuccess && (
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-center">
+                <p className="text-xs text-amber-400">
+                  Wrong network. Please switch to Monad Testnet (10143).
+                </p>
               </div>
             )}
 
-            {isWrongChain && isConnected && !isPending && !isConfirming && !isSuccess && (
-              <p className="text-center text-xs text-amber-400">
-                Wrong network detected. Please switch to Monad Testnet (10143).
-              </p>
+            {/* Submit Button */}
+            {!isConnected ? (
+              <button
+                disabled
+                className="w-full cursor-not-allowed rounded-xl bg-gray-700 py-4 text-base font-bold text-gray-400"
+              >
+                Connect Wallet to Create
+              </button>
+            ) : (
+              <button
+                onClick={() => void handleCreate()}
+                disabled={!isFormValid || isBusy || isWrongChain}
+                className={`w-full rounded-xl py-4 text-base font-bold transition-all duration-300 ${
+                  !isFormValid || isBusy || isWrongChain
+                    ? 'cursor-not-allowed bg-gray-700 text-gray-400'
+                    : 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg shadow-violet-500/20 hover:from-violet-500 hover:to-purple-500 hover:shadow-violet-500/30 active:scale-[0.98]'
+                }`}
+              >
+                {isUploading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Spinner />
+                    Uploading image...
+                  </span>
+                ) : isPending ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Spinner />
+                    Waiting for wallet...
+                  </span>
+                ) : isConfirming ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Spinner />
+                    Creating token...
+                  </span>
+                ) : (
+                  <span>🚀 Launch Token (10 MON)</span>
+                )}
+              </button>
             )}
 
-            {hash ? (
-              <p className="truncate text-center text-xs text-zinc-500">
+            {/* Success State */}
+            {isSuccess && (
+              <div className="animate-in fade-in rounded-xl border border-green-500/20 bg-green-500/10 p-4 text-center duration-500">
+                <div className="mb-2 text-3xl">🎉</div>
+                <p className="font-bold text-green-400">Token created successfully!</p>
+                <p className="mt-1 text-sm text-gray-400">Death clock is ticking...</p>
+                {newTokenId && (
+                  <div className="mt-2">
+                    <Link className="text-sm text-green-300 underline hover:text-green-200" href={`/token/${newTokenId}`}>
+                      View your token →
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-center">
+                <p className="text-sm text-red-400">
+                  {error.message?.toLowerCase().includes('insufficient')
+                    ? 'Insufficient MON balance. You need at least 10 MON.'
+                    : error.message?.toLowerCase().includes('rejected') || error.message?.toLowerCase().includes('denied')
+                    ? 'Transaction cancelled.'
+                    : 'Transaction failed. Please try again.'}
+                </p>
+              </div>
+            )}
+
+            {/* Tx Hash */}
+            {hash && (
+              <p className="truncate text-center text-xs text-gray-600">
                 Tx: {hash}
               </p>
-            ) : null}
+            )}
+          </div>
 
-            <p className="text-center text-xs text-zinc-500">
-              Every token has a death clock.
-              <br />
-              When time&apos;s up: clac. 💀
+          {/* Bottom Info */}
+          <div className="mt-6 text-center">
+            <p className="text-xs text-gray-600">
+              Every token has a death clock. When time&apos;s up: clac. 💀
+            </p>
+            <p className="mt-1 text-xs text-gray-700">
+              2% protocol fee + 1% creator fee per trade • 5% death tax
             </p>
           </div>
         </div>
