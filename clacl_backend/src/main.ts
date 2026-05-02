@@ -26,7 +26,19 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
-  app.enableCors({ origin: '*' });
+  const allowedOrigins = (process.env.CORS_ORIGINS || 'https://clac.fun')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  });
   app.use('/uploads', express.static(uploadsDir));
   app.useWebSocketAdapter(new IoAdapter(app));
   app.setGlobalPrefix('api');

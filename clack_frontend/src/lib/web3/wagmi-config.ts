@@ -11,7 +11,7 @@ import {
   trustWallet,
   walletConnectWallet,
 } from '@rainbow-me/rainbowkit/wallets'
-import { monadTestnet } from './chains'
+import { activeChain, monadTestnet, monadMainnet } from './chains'
 import { publicEnv } from '@/lib/env'
 
 const projectId = publicEnv.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID.trim()
@@ -42,10 +42,11 @@ const connectors = isBrowser
   : [injected(), metaMask()]
 
 export const wagmiConfig = createConfig({
-  chains: [monadTestnet],
+  chains: [activeChain],
   connectors,
   transports: {
     [monadTestnet.id]: http(),
+    [monadMainnet.id]: http(),
   },
   ssr: false,
 })

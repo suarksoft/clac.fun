@@ -34,6 +34,7 @@ export class BlockchainService implements OnModuleInit {
       return;
     }
 
+    await this.resetSyncStateIfChainChanged();
     await this.connect();
     this.listenToEvents();
 
@@ -573,8 +574,21 @@ export class BlockchainService implements OnModuleInit {
   private async markSyncedBlock(lastBlockNumber: number) {
     await this.prisma.syncState.upsert({
       where: { id: 1 },
-      create: { id: 1, lastBlockNumber },
+      create: { id: 1, lastBlockNumber, chainId: activeConfig.chainId },
       update: { lastBlockNumber },
     });
+  }
+
+  private async resetSyncStateIfChainChanged() {
+    const syncState = await this.prisma.syncState.findFirst();
+    if (syncState && syncState.chainId !== activeConfig.chainId) {
+      this.logger.warn(
+        `Chain changed from ${syncState.chainId} to ${activeConfig.chainId}. Resetting sync state.`,
+      );
+      await this.prisma.syncState.update({
+        where: { id: 1 },
+        data: { lastBlockNumber: 0, chainId: activeConfig.chainId },
+      });
+    }
   }
 }

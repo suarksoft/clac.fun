@@ -15,4 +15,7 @@ export const monadConfig = {
   },
 };
 
-export const activeConfig = monadConfig.testnet;
+// Set MONAD_NETWORK=mainnet in .env to switch to Monad Mainnet
+const network = (process.env.MONAD_NETWORK ?? 'testnet').toLowerCase();
+export const activeConfig =
+  network === 'mainnet' ? monadConfig.mainnet : monadConfig.testnet;

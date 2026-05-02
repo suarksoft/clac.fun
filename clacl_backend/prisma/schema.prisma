@@ -81,4 +81,5 @@ model Claim {
 model SyncState {
   id              Int @id @default(1)
   lastBlockNumber Int @default(0)
+  chainId         Int @default(10143)
 }

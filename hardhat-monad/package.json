@@ -5,8 +5,11 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy:testnet": "hardhat ignition deploy ignition/modules/ClacFactory.ts --network monadTestnet",
-    "deploy:mainnet": "hardhat ignition deploy ignition/modules/ClacFactory.ts --network monadMainnet"
+    "deploy:testnet": "hardhat ignition deploy ignition/modules/ClacFactory.ts --network monadTestnet --parameters ignition/parameters/testnet.json",
+    "deploy:mainnet": "hardhat ignition deploy ignition/modules/ClacFactory.ts --network monadMainnet --parameters ignition/parameters/mainnet.json",
+    "pre-deploy-check": "hardhat run scripts/pre-deploy-check.ts --network monadMainnet",
+    "verify:testnet": "hardhat verify --network monadTestnet",
+    "verify:mainnet": "hardhat verify --network monadMainnet"
   },
   "author": "",
   "license": "ISC",
