@@ -39,9 +39,12 @@ export function TradePanel({
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy')
   const [amount, setAmount] = useState('')
   const [quote, setQuote] = useState<string | null>(null)
+  const [quoteRaw, setQuoteRaw] = useState<bigint | null>(null)
   const [errorText, setErrorText] = useState<string | null>(null)
   const [txError, setTxError] = useState<string | null>(null)
   const [walletTokenBalance, setWalletTokenBalance] = useState(0)
+  const [balanceFetchError, setBalanceFetchError] = useState(false)
+  const [slippageEnabled, setSlippageEnabled] = useState(false)
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const { switchChain } = useSwitchChain()
@@ -87,6 +90,7 @@ export function TradePanel({
   useEffect(() => {
     setAmount('')
     setQuote(null)
+    setQuoteRaw(null)
     setErrorText(null)
     setTxError(null)
   }, [activeTab])
@@ -107,8 +111,11 @@ export function TradePanel({
           functionName: 'getSellQuote',
           args: [tokenId, parsedAmount],
         })
-        setQuote(formatTokenPrice(Number(formatEther(result as bigint))))
+        const raw = result as bigint
+        setQuoteRaw(raw)
+        setQuote(formatTokenPrice(Number(formatEther(raw))))
       } catch {
+        setQuoteRaw(null)
         setQuote(null)
       }
     }
@@ -137,10 +144,12 @@ export function TradePanel({
       } catch {
         if (!cancelled) {
           setWalletTokenBalance(0)
+          setBalanceFetchError(true)
         }
       }
     }
 
+    setBalanceFetchError(false)
     readWalletTokenBalance()
     return () => {
       cancelled = true
@@ -166,8 +175,12 @@ export function TradePanel({
     if (/Min buy/i.test(msg)) return 'Minimum buy is 0.01 MON.'
     if (/cooldown/i.test(msg)) return 'Buy cooldown active. Wait a moment.'
     if (/Max holding/i.test(msg)) return 'Whale limit: max 10% of supply per wallet.'
+    if (/Pool cap reached/i.test(msg)) return 'Pool cap reached. Token is nearly complete.'
+    if (/Anti-sniper/i.test(msg)) return 'Anti-sniper limit: reduce your buy amount.'
+    if (/Max supply/i.test(msg)) return 'Token supply limit reached.'
+    if (/Time expired/i.test(msg)) return 'Token has expired — trading is closed.'
     if (/token.*dead|trading.*disabled|CLAC.D/i.test(msg)) return 'This token has expired.'
-    if (/slippage|PRICE_IMPACT/i.test(msg)) return 'Price moved too much. Try again.'
+    if (/slippage|PRICE_IMPACT|minTokens|minMon/i.test(msg)) return 'Price moved too much. Enable slippage or try again.'
     if (/insufficient.*balance|balance.*insufficient/i.test(msg)) return `Insufficient ${tokenSymbol} balance.`
     return 'Transaction failed. Please try again.'
   }
@@ -187,7 +200,7 @@ export function TradePanel({
       return
     }
     if (activeTab === 'sell') {
-      if (walletTokenBalance <= 0) {
+      if (!balanceFetchError && walletTokenBalance <= 0) {
         setErrorText(`You do not have ${tokenSymbol} to sell.`)
         return
       }
@@ -196,7 +209,7 @@ export function TradePanel({
         setErrorText(`Enter a valid ${tokenSymbol} amount.`)
         return
       }
-      if (amountAsNumber > walletTokenBalance) {
+      if (!balanceFetchError && amountAsNumber > walletTokenBalance) {
         setErrorText(
           `Insufficient ${tokenSymbol} balance. Max: ${walletTokenBalance.toFixed(6)}`,
         )
@@ -205,21 +218,28 @@ export function TradePanel({
     }
     setErrorText(null)
 
+    const SLIPPAGE = 0.95
     try {
       if (activeTab === 'buy') {
+        const minTokens = slippageEnabled && currentPrice > 0 && parsedAmount
+          ? parseEther(((Number(formatEther(parsedAmount)) / currentPrice) * SLIPPAGE).toFixed(18))
+          : BigInt(0)
         await writeContractAsync({
           address: CLAC_FACTORY_ADDRESS as `0x${string}`,
           abi: CLAC_FACTORY_ABI,
           functionName: 'buy',
-          args: [tokenId, BigInt(0)],
+          args: [tokenId, minTokens],
           value: parsedAmount,
         })
       } else {
+        const minMon = slippageEnabled && quoteRaw
+          ? (quoteRaw * BigInt(Math.floor(SLIPPAGE * 1000))) / BigInt(1000)
+          : BigInt(0)
         await writeContractAsync({
           address: CLAC_FACTORY_ADDRESS as `0x${string}`,
           abi: CLAC_FACTORY_ABI,
           functionName: 'sell',
-          args: [tokenId, parsedAmount, BigInt(0)],
+          args: [tokenId, parsedAmount, minMon],
         })
       }
       setAmount('')
@@ -287,10 +307,12 @@ export function TradePanel({
         </span>
         <button
           type="button"
-          className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+          onClick={() => setSlippageEnabled(v => !v)}
+          title={slippageEnabled ? 'Slippage protection ON (5%). Click to disable.' : 'Slippage protection OFF. Click to enable 5% slippage.'}
+          className={`flex items-center gap-1 transition-colors ${slippageEnabled ? 'text-primary hover:text-primary/80' : 'text-muted-foreground hover:text-foreground'}`}
         >
           <Settings className="h-3.5 w-3.5" />
-          Slippage Off
+          {slippageEnabled ? 'Slippage 5%' : 'Slippage Off'}
         </button>
       </div>
 
@@ -341,6 +363,7 @@ export function TradePanel({
               key={percent}
               onClick={() => setSellAmountByPercent(percent)}
               disabled={isDead || walletTokenBalance <= 0}
+              title={percent === 100 ? 'Sells 98% of balance — reserves 2% to avoid bonding curve rounding reverts.' : undefined}
               className={`rounded-md border py-1.5 text-[11px] font-medium transition-colors ${
                 percent === 100
                   ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
