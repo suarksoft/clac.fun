@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Web3Provider } from '@/components/providers/web3-provider'
 import './globals.css'
@@ -50,7 +49,6 @@ export default function RootLayout({
         >
           <Web3Provider>{children}</Web3Provider>
         </ThemeProvider>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )

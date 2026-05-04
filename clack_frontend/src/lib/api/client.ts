@@ -42,7 +42,12 @@ export const apiClient = {
 
 export function createSocketClient() {
   return io(`${BACKEND_URL}/ws`, {
-    transports: ['websocket'],
+    // polling → websocket upgrade is required on Render.com's proxy layer.
+    // Forcing websocket-only ('websocket') prevents the HTTP handshake and
+    // the connection dies before it can be established.
+    transports: ['polling', 'websocket'],
     reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionAttempts: 10,
   })
 }
