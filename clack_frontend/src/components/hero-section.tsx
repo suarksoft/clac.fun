@@ -38,10 +38,10 @@ export function HeroSection() {
   }, [featuredToken]);
 
   const statCards = [
-    { icon: '🟢', label: 'Live Now', value: loading ? '-' : String(stats.liveCount), color: 'text-green-400' },
-    { icon: '📊', label: 'Total Trades', value: loading ? '-' : String(stats.totalTrades), color: 'text-white' },
-    { icon: '💎', label: 'Volume', value: loading ? '-' : stats.totalVolume, color: 'text-violet-400', suffix: 'MON' },
-    { icon: '💀', label: "Clac'd", value: loading ? '-' : String(stats.clacdCount), color: 'text-red-400' },
+    { icon: '', label: 'Live Now', value: loading ? '-' : String(stats.liveCount), color: 'text-green-400' },
+    { icon: '', label: 'Total Trades', value: loading ? '-' : String(stats.totalTrades), color: 'text-white' },
+    { icon: '', label: 'Volume', value: loading ? '-' : stats.totalVolume, color: 'text-violet-400', suffix: 'MON' },
+    { icon: '', label: "Clac'd", value: loading ? '-' : String(stats.clacdCount), color: 'text-red-400' },
   ];
 
   return (

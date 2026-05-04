@@ -299,9 +299,11 @@ export function TradePanel({
       <div className="mb-2 flex items-center justify-between text-[11px]">
         <span className="text-muted-foreground">
           Balance:{' '}
-          <span className="text-foreground">
+          <span className={activeTab === 'sell' && balanceFetchError ? 'text-amber-400' : 'text-foreground'}>
             {activeTab === 'buy'
               ? `${walletMonBalanceText} MON`
+              : balanceFetchError
+              ? 'Unable to fetch'
               : `${walletTokenBalanceText} ${tokenSymbol}`}
           </span>
         </span>
