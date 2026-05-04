@@ -64,6 +64,8 @@ Blockhash block builder'lar tarafından görülür ve manipüle edilebilir. Vali
 **Yapılacaklar:**
 - [ ] Chainlink VRF entegre et ya da commit-reveal pattern kullan
 
+
+
 ---
 
 ### 4. Admin Authentication Çok Zayıf

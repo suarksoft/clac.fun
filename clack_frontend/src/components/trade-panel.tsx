@@ -10,7 +10,6 @@ import {
   useChainId,
   usePublicClient,
   useSwitchChain,
-  useWaitForTransactionReceipt,
   useWriteContract,
 } from 'wagmi'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
@@ -51,12 +50,8 @@ export function TradePanel({
   const { openConnectModal } = useConnectModal()
   const publicClient = usePublicClient()
   const { data: hash, isPending, writeContractAsync } = useWriteContract()
-  const txReceipt = useWaitForTransactionReceipt({
-    hash,
-    confirmations: 1,
-    pollingInterval: 1_000,
-  })
   const [awaitingConfirm, setAwaitingConfirm] = useState(false)
+  const [confirmedHash, setConfirmedHash] = useState<`0x${string}` | null>(null)
   const { data: balanceData } = useBalance({ address })
   const walletMonBalance = Number(balanceData?.formatted || userBalance || 0)
   const isWrongChain = isConnected && chainId !== monadTestnet.id
@@ -159,33 +154,63 @@ export function TradePanel({
     return () => {
       cancelled = true
     }
-  }, [publicClient, isConnected, address, activeTab, tokenId, isDead, txReceipt.isSuccess])
+  }, [publicClient, isConnected, address, activeTab, tokenId, isDead, confirmedHash])
 
-  // Track when a tx hash arrives so we can show "Confirming..." and apply a timeout.
+  // Manual receipt polling — more reliable than useWaitForTransactionReceipt on Monad testnet.
   useEffect(() => {
-    if (hash) setAwaitingConfirm(true)
+    if (!hash || !publicClient) return
+
+    setAwaitingConfirm(true)
+    let stopped = false
+    let attempts = 0
+    const MAX_ATTEMPTS = 60 // 60 × 2s = 2 minutes
+
+    const poll = async () => {
+      while (!stopped && attempts < MAX_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, 2_000))
+        if (stopped) break
+        attempts++
+        try {
+          const receipt = await publicClient.getTransactionReceipt({ hash })
+          if (!receipt) continue
+
+          stopped = true
+          setAwaitingConfirm(false)
+          setConfirmedHash(hash)
+
+          if (receipt.status === 'reverted') {
+            // Re-simulate to extract revert reason
+            try {
+              const tx = await publicClient.getTransaction({ hash })
+              await publicClient.call({
+                to: tx.to ?? undefined,
+                data: tx.input,
+                value: tx.value,
+                account: tx.from,
+              })
+              setTxError('Transaction reverted. Please try again.')
+            } catch (simErr: unknown) {
+              setTxError(parseTxError(simErr))
+            }
+          } else {
+            onTradeSuccess?.()
+          }
+          return
+        } catch {
+          // Receipt not yet available — keep polling
+        }
+      }
+
+      if (!stopped) {
+        setAwaitingConfirm(false)
+        setTxError('Could not confirm transaction. Check MonadScan for status.')
+      }
+    }
+
+    poll()
+    return () => { stopped = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hash])
-
-  useEffect(() => {
-    if (txReceipt.isSuccess) {
-      setAwaitingConfirm(false)
-      onTradeSuccess?.()
-    }
-    if (txReceipt.isError) {
-      setAwaitingConfirm(false)
-      setTxError('Transaction failed on-chain. Please try again.')
-    }
-  }, [txReceipt.isSuccess, txReceipt.isError, onTradeSuccess])
-
-  // Safety timeout — if receipt never arrives within 90s, unblock the UI.
-  useEffect(() => {
-    if (!awaitingConfirm) return
-    const timer = setTimeout(() => {
-      setAwaitingConfirm(false)
-      setTxError('Transaction is taking longer than expected. Check your wallet for status.')
-    }, 90_000)
-    return () => clearTimeout(timer)
-  }, [awaitingConfirm])
 
   useEffect(() => {
     if (!txError) return
@@ -441,7 +466,17 @@ export function TradePanel({
           : 'Sell'}
       </Button>
       {hash && (
-        <p className="mt-2 truncate text-center text-[11px] text-muted-foreground">Tx: {hash}</p>
+        <p className="mt-2 truncate text-center text-[11px] text-muted-foreground">
+          Tx:{' '}
+          <a
+            href={`https://testnet.monadexplorer.com/tx/${hash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-foreground"
+          >
+            {hash.slice(0, 10)}…{hash.slice(-6)}
+          </a>
+        </p>
       )}
       {errorText && (
         <p className="mt-2 text-center text-xs text-red-400">{errorText}</p>
