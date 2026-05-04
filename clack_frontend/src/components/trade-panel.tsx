@@ -252,18 +252,9 @@ export function TradePanel({
       setErrorText('Please enter a valid amount.')
       return
     }
-    if (activeTab === 'buy') {
-      if (atWhaleLimit) {
-        setErrorText(`Wallet limit reached. Max 10% of supply (100M ${tokenSymbol}) per wallet.`)
-        return
-      }
-      const estimatedTokens = currentPrice > 0 ? Number(amount) / currentPrice : 0
-      if (estimatedTokens > remainingCapacity) {
-        setErrorText(
-          `Whale limit: this buy would exceed 100M ${tokenSymbol}. You can buy up to ${remainingCapacity.toLocaleString('en-US', { maximumFractionDigits: 0 })} more.`,
-        )
-        return
-      }
+    if (activeTab === 'buy' && atWhaleLimit) {
+      setErrorText(`Wallet limit reached. Max 10% of supply (100M ${tokenSymbol}) per wallet.`)
+      return
     }
     if (activeTab === 'sell') {
       if (!balanceFetchError && walletTokenBalance <= 0) {
