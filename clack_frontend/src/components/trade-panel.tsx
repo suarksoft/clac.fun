@@ -73,6 +73,11 @@ export function TradePanel({
     amount && amount !== 'max' && currentPrice > 0
       ? (parseFloat(amount) / currentPrice).toFixed(2)
       : '0'
+  const wouldExceedWhaleLimit =
+    activeTab === 'buy' &&
+    !atWhaleLimit &&
+    remainingCapacity > 0 &&
+    Number(calculatedTokens) > remainingCapacity
   const walletMonBalanceText = walletMonBalance.toLocaleString('en-US', {
     maximumFractionDigits: 4,
   })
@@ -253,7 +258,13 @@ export function TradePanel({
       return
     }
     if (activeTab === 'buy' && atWhaleLimit) {
-      setErrorText(`Wallet limit reached. Max 10% of supply (100M ${tokenSymbol}) per wallet.`)
+      setErrorText(`Whale limit reached. Max 10% of supply (100M ${tokenSymbol}) per wallet.`)
+      return
+    }
+    if (activeTab === 'buy' && wouldExceedWhaleLimit) {
+      setErrorText(
+        `This buy would exceed the whale limit. You can buy at most ${remainingCapacity.toLocaleString('en-US', { maximumFractionDigits: 0 })} more ${tokenSymbol}.`
+      )
       return
     }
     if (activeTab === 'sell') {
@@ -324,7 +335,12 @@ export function TradePanel({
     if (value === 'max') {
       const gasReserve = 0.01
       const maxSpendable = Math.max(walletMonBalance - gasReserve, 0)
-      setAmount(maxSpendable > 0 ? maxSpendable.toFixed(6) : '')
+      // Cap to whale limit: don't let them spend more MON than the remaining token capacity allows
+      const maxByWhaleLimit = remainingCapacity > 0 && currentPrice > 0
+        ? remainingCapacity * currentPrice
+        : maxSpendable
+      const capped = Math.min(maxSpendable, maxByWhaleLimit)
+      setAmount(capped > 0 ? capped.toFixed(6) : '')
       return
     }
     setAmount(value)
@@ -359,10 +375,16 @@ export function TradePanel({
             <>
               MON:{' '}
               <span className="text-foreground">{walletMonBalanceText}</span>
-              {isConnected && walletTokenBalance > 0 && (
-                <span className={`ml-1.5 ${atWhaleLimit ? 'text-red-400' : 'text-muted-foreground'}`}>
-                  · {tokenSymbol}: {walletTokenBalance.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                  {atWhaleLimit ? ' (limit reached)' : ''}
+              {isConnected && atWhaleLimit && (
+                <span className="ml-1.5 text-red-400">· Whale limit reached (100M {tokenSymbol})</span>
+              )}
+              {isConnected && !atWhaleLimit && walletTokenBalance > 0 && (
+                <span className="ml-1.5 text-muted-foreground">
+                  · Can buy{' '}
+                  <span className="text-foreground">
+                    {remainingCapacity.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </span>{' '}
+                  more {tokenSymbol}
                 </span>
               )}
             </>
@@ -457,6 +479,16 @@ export function TradePanel({
         </span>
       </div>
 
+      {wouldExceedWhaleLimit && (
+        <div className="mb-2 rounded-md border border-red-500/40 bg-red-500/10 px-2.5 py-2 text-[11px] text-red-400">
+          Whale limit: max 10% of supply (100M {tokenSymbol}) per wallet. Reduce your amount.
+        </div>
+      )}
+      {atWhaleLimit && activeTab === 'buy' && (
+        <div className="mb-2 rounded-md border border-red-500/40 bg-red-500/10 px-2.5 py-2 text-[11px] text-red-400">
+          You have reached the whale limit (100M {tokenSymbol}). Sell some tokens first.
+        </div>
+      )}
       <div className="mb-3 rounded-md border border-border bg-amber-500/10 px-2.5 py-2 text-[11px] text-muted-foreground">
         You earn round points by trading and can receive extra rewards.
       </div>
