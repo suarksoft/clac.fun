@@ -73,30 +73,54 @@ export function TokenInfoPanel({ token, totalTxns, buyCount, sellCount }: TokenI
         </div>
 
         <div className="mb-3 grid grid-cols-3 gap-1.5">
-          <a
-            href="https://t.me/clacfun"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-md border border-border bg-secondary/30 py-1.5 text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Telegram
-          </a>
-          <a
-            href="https://x.com/devrunnel"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-md border border-border bg-secondary/30 py-1.5 text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
-          >
-            X
-          </a>
-          <a
-            href={explorerUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-md border border-border bg-secondary/30 py-1.5 text-muted-foreground transition-colors hover:text-foreground flex items-center justify-center"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+          {token.telegram ? (
+            <a
+              href={token.telegram}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md border border-border bg-secondary/30 py-1.5 text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Telegram
+            </a>
+          ) : (
+            <span className="rounded-md border border-border bg-secondary/10 py-1.5 text-center text-xs text-muted-foreground/30 cursor-not-allowed">
+              Telegram
+            </span>
+          )}
+          {token.twitter ? (
+            <a
+              href={token.twitter}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md border border-border bg-secondary/30 py-1.5 text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              𝕏 Twitter
+            </a>
+          ) : (
+            <span className="rounded-md border border-border bg-secondary/10 py-1.5 text-center text-xs text-muted-foreground/30 cursor-not-allowed">
+              𝕏 Twitter
+            </span>
+          )}
+          {token.website ? (
+            <a
+              href={token.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md border border-border bg-secondary/30 py-1.5 text-muted-foreground transition-colors hover:text-foreground flex items-center justify-center gap-1 text-xs"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Web
+            </a>
+          ) : (
+            <a
+              href={explorerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md border border-border bg-secondary/30 py-1.5 text-muted-foreground transition-colors hover:text-foreground flex items-center justify-center"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          )}
         </div>
 
         <div className="mb-3 grid grid-cols-3 gap-2">

@@ -19,6 +19,7 @@ import { toast } from 'sonner'
 import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
 import { monadTestnet } from '@/lib/web3/chains'
 import { publicEnv } from '@/lib/env'
+import { apiClient } from '@/lib/api/client'
 
 type Duration = '6h' | '12h' | '24h'
 type AdminTokenRow = {
@@ -49,6 +50,10 @@ export default function AdminPage() {
   const [name, setName] = useState('')
   const [symbol, setSymbol] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [adminDescription, setAdminDescription] = useState('')
+  const [adminWebsite, setAdminWebsite] = useState('')
+  const [adminTwitter, setAdminTwitter] = useState('')
+  const [adminTelegram, setAdminTelegram] = useState('')
   const [selectedImageName, setSelectedImageName] = useState('')
   const [duration, setDuration] = useState<Duration>('12h')
   const [desiredFeeMon, setDesiredFeeMon] = useState('0')
@@ -402,6 +407,19 @@ export default function AdminPage() {
         setCreationFeeWei(previousFee)
       }
 
+      // Save social links (best-effort)
+      if (createdTokenId) {
+        const socials = {
+          description: adminDescription.trim() || undefined,
+          website: adminWebsite.trim() || undefined,
+          twitter: adminTwitter.trim() || undefined,
+          telegram: adminTelegram.trim() || undefined,
+        }
+        if (Object.values(socials).some(Boolean)) {
+          apiClient.updateTokenSocials(Number(createdTokenId), socials).catch(() => {/* ignore */})
+        }
+      }
+
       await loadConfig()
       setStatusText('Admin token olusturma tamamlandi.')
       toast.success('Admin token olusturuldu.')
@@ -598,6 +616,29 @@ export default function AdminPage() {
                   </Button>
                 ))}
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Description <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <textarea
+                value={adminDescription}
+                onChange={(e) => setAdminDescription(e.target.value)}
+                maxLength={280}
+                rows={2}
+                placeholder="Token description..."
+                className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Website <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input value={adminWebsite} onChange={(e) => setAdminWebsite(e.target.value)} placeholder="https://..." type="url" />
+            </div>
+            <div className="space-y-2">
+              <Label>Twitter/X <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input value={adminTwitter} onChange={(e) => setAdminTwitter(e.target.value)} placeholder="https://x.com/..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Telegram <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input value={adminTelegram} onChange={(e) => setAdminTelegram(e.target.value)} placeholder="https://t.me/..." />
             </div>
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <input
