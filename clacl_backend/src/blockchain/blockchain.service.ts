@@ -360,6 +360,30 @@ export class BlockchainService implements OnModuleInit {
     }
 
     const effectiveSupplyFloat = Number(ethers.formatEther(virtualSupply));
+
+    // 24h price change: use the most recent trade older than 24h as reference,
+    // falling back to firstBuyPrice for tokens younger than 24h.
+    const price24hCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const trade24hAgo = await this.prisma.trade.findFirst({
+      where: { tokenId: Number(tokenId), timestamp: { lte: price24hCutoff } },
+      orderBy: { timestamp: 'desc' },
+      select: { newPrice: true },
+    });
+    const tokenForRef = !trade24hAgo
+      ? await this.prisma.token.findUnique({
+          where: { id: Number(tokenId) },
+          select: { firstBuyPrice: true },
+        })
+      : null;
+    const refPriceRaw = trade24hAgo?.newPrice ?? tokenForRef?.firstBuyPrice;
+    let change24h = 0;
+    if (refPriceRaw) {
+      const refFloat = Number(ethers.formatEther(BigInt(refPriceRaw)));
+      if (refFloat > 0) {
+        change24h = ((priceFloat - refFloat) / refFloat) * 100;
+      }
+    }
+
     await this.prisma.token.update({
       where: { id: Number(tokenId) },
       data: {
@@ -368,6 +392,7 @@ export class BlockchainService implements OnModuleInit {
         poolBalance,
         marketCap: priceFloat * effectiveSupplyFloat,
         volume24h: { increment: monFloat },
+        change24h,
       },
     });
 
