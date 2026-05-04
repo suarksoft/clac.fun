@@ -45,8 +45,8 @@ export const wagmiConfig = createConfig({
   chains: [activeChain],
   connectors,
   transports: {
-    [monadTestnet.id]: http(),
-    [monadMainnet.id]: http(),
+    [monadTestnet.id]: http(publicEnv.NEXT_PUBLIC_MONAD_RPC),
+    [monadMainnet.id]: http(publicEnv.NEXT_PUBLIC_MONAD_RPC),
   },
   ssr: false,
 })

@@ -51,7 +51,12 @@ export function TradePanel({
   const { openConnectModal } = useConnectModal()
   const publicClient = usePublicClient()
   const { data: hash, isPending, writeContractAsync } = useWriteContract()
-  const txReceipt = useWaitForTransactionReceipt({ hash })
+  const txReceipt = useWaitForTransactionReceipt({
+    hash,
+    confirmations: 1,
+    pollingInterval: 1_000,
+  })
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false)
   const { data: balanceData } = useBalance({ address })
   const walletMonBalance = Number(balanceData?.formatted || userBalance || 0)
   const isWrongChain = isConnected && chainId !== monadTestnet.id
@@ -156,11 +161,31 @@ export function TradePanel({
     }
   }, [publicClient, isConnected, address, activeTab, tokenId, isDead, txReceipt.isSuccess])
 
+  // Track when a tx hash arrives so we can show "Confirming..." and apply a timeout.
   useEffect(() => {
-    if (txReceipt.isSuccess && onTradeSuccess) {
-      onTradeSuccess()
+    if (hash) setAwaitingConfirm(true)
+  }, [hash])
+
+  useEffect(() => {
+    if (txReceipt.isSuccess) {
+      setAwaitingConfirm(false)
+      onTradeSuccess?.()
     }
-  }, [txReceipt.isSuccess, onTradeSuccess])
+    if (txReceipt.isError) {
+      setAwaitingConfirm(false)
+      setTxError('Transaction failed on-chain. Please try again.')
+    }
+  }, [txReceipt.isSuccess, txReceipt.isError, onTradeSuccess])
+
+  // Safety timeout — if receipt never arrives within 90s, unblock the UI.
+  useEffect(() => {
+    if (!awaitingConfirm) return
+    const timer = setTimeout(() => {
+      setAwaitingConfirm(false)
+      setTxError('Transaction is taking longer than expected. Check your wallet for status.')
+    }, 90_000)
+    return () => clearTimeout(timer)
+  }, [awaitingConfirm])
 
   useEffect(() => {
     if (!txError) return
@@ -394,20 +419,22 @@ export function TradePanel({
       </div>
 
       <Button
-        disabled={isDead || isPending || txReceipt.isLoading}
+        disabled={isDead || isPending || awaitingConfirm}
         onClick={executeTrade}
         className={`w-full gap-2 py-5 text-sm font-semibold ${
           activeTab === 'buy' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-red-500 text-white hover:bg-red-600'
         }`}
       >
-        {isPending || txReceipt.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+        {isPending || awaitingConfirm ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
         {isDead
           ? "💀 THIS TOKEN GOT CLAC'D"
           : !isConnected
           ? 'Connect'
           : isWrongChain
           ? 'Switch to Monad Testnet'
-          : isPending || txReceipt.isLoading
+          : isPending
+          ? 'Waiting for wallet...'
+          : awaitingConfirm
           ? 'Confirming...'
           : activeTab === 'buy'
           ? 'Buy'
