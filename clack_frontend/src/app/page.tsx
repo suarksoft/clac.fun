@@ -1,6 +1,6 @@
 import { Header } from '@/components/header'
 import { LiveTicker } from '@/components/live-ticker'
-import { PromoBanner } from '@/components/promo-banner'
+import { HeroSection } from '@/components/hero-section'
 import { TrendingCarousel } from '@/components/trending-carousel'
 import { TokenGrid } from '@/components/token-grid'
 import { WinnersFeed } from '@/components/winners-feed'
@@ -10,12 +10,12 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <LiveTicker />
-      
+
       <main className="flex-1">
         <div className="container mx-auto max-w-7xl px-4 py-6">
           <div className="space-y-8">
-            {/* Promo Banner */}
-            <PromoBanner />
+            {/* Hero Banner */}
+            <HeroSection />
             <WinnersFeed />
 
             {/* Trending Tokens */}
