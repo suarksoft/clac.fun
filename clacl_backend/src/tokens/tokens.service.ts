@@ -66,6 +66,18 @@ export class TokensService {
     });
   }
 
+  async getTokenBySlug(slug: string) {
+    return this.prisma.token.findUnique({
+      where: { slug },
+      include: {
+        trades: {
+          take: 50,
+          orderBy: { timestamp: 'desc' },
+        },
+      },
+    });
+  }
+
   async getTradesByToken(tokenId: number, page = 1, limit = 50) {
     const safePage = Math.max(page, 1);
     const safeLimit = Math.min(Math.max(limit, 1), 100);

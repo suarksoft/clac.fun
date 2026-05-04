@@ -11,6 +11,7 @@ interface HeroStats {
 
 interface LiveToken {
   id: number;
+  slug?: string | null;
   name: string;
   symbol: string;
   imageURI: string;

@@ -40,6 +40,7 @@ export function toUiToken(token: BackendToken): Token {
 
   return {
     id: String(token.id),
+    slug: token.slug ?? undefined,
     name: token.name,
     symbol: token.symbol,
     image: resolveTokenImageUrl(token.imageURI),

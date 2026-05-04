@@ -55,7 +55,7 @@ export default function LeaderboardPage() {
                 return (
                   <Link
                     key={token.id}
-                    href={`/token/${token.id}`}
+                    href={`/token/${token.slug || token.id}`}
                     className="flex items-center justify-between gap-3 rounded-xl border border-border bg-secondary/20 p-4 transition-colors hover:bg-secondary/40"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -157,7 +157,7 @@ export default function LeaderboardPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <Link href={`/token/${token.id}`} className="flex items-center gap-3 hover:opacity-80">
+                          <Link href={`/token/${token.slug || token.id}`} className="flex items-center gap-3 hover:opacity-80">
                             <div className="relative h-10 w-10 overflow-hidden rounded-full">
                               <TokenImage src={token.image} alt={token.name} fill className="object-cover" />
                             </div>

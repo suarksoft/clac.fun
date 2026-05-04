@@ -15,6 +15,7 @@ export interface BackendToken {
   volume24h: number
   change24h: number
   firstBuyPrice?: string | null
+  slug?: string | null
 }
 
 export interface BackendTrade {

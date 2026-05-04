@@ -213,7 +213,7 @@ export default function PortfolioPage() {
                   {holdings.map((holding) => (
                     <tr key={holding.id} className="border-b border-border/50">
                       <td className="px-6 py-4">
-                        <Link href={`/token/${holding.id}`} className="flex items-center gap-3 hover:opacity-80">
+                        <Link href={`/token/${holding.token?.slug || holding.tokenId}`} className="flex items-center gap-3 hover:opacity-80">
                           <div className="relative h-10 w-10 overflow-hidden rounded-full">
                             <TokenImage
                               src={resolveTokenImageUrl(holding.token.imageURI)}
@@ -247,7 +247,7 @@ export default function PortfolioPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
-                          <Link href={`/token/${holding.tokenId}`}>
+                          <Link href={`/token/${holding.token?.slug || holding.tokenId}`}>
                             <Button variant="outline" size="sm" className="border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/10">
                               Sell
                             </Button>
@@ -267,7 +267,7 @@ export default function PortfolioPage() {
               {holdings.map((holding) => (
                 <div key={holding.id} className="rounded-xl border border-border bg-secondary/20 p-4">
                   <div className="mb-3 flex items-start justify-between gap-2">
-                    <Link href={`/token/${holding.tokenId}`} className="flex min-w-0 flex-1 items-center gap-3">
+                    <Link href={`/token/${holding.token?.slug || holding.tokenId}`} className="flex min-w-0 flex-1 items-center gap-3">
                       <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
                         <TokenImage
                           src={resolveTokenImageUrl(holding.token.imageURI)}
@@ -307,7 +307,7 @@ export default function PortfolioPage() {
                     </div>
                   </div>
                   <div className="mt-3 flex justify-end">
-                    <Link href={`/token/${holding.tokenId}`}>
+                    <Link href={`/token/${holding.token?.slug || holding.tokenId}`}>
                       <Button variant="outline" size="sm" className="min-h-[44px] border-emerald-500/50 px-6 text-emerald-500 hover:bg-emerald-500/10">
                         Sell
                       </Button>

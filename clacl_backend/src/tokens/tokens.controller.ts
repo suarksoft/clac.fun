@@ -22,9 +22,12 @@ export class TokensController {
     return this.tokensService.getDyingTokens();
   }
 
-  @Get(':id')
-  getTokenById(@Param('id', ParseIntPipe) id: number) {
-    return this.tokensService.getTokenById(id);
+  @Get(':idOrSlug')
+  getToken(@Param('idOrSlug') idOrSlug: string) {
+    if (idOrSlug.startsWith('0x')) {
+      return this.tokensService.getTokenBySlug(idOrSlug);
+    }
+    return this.tokensService.getTokenById(parseInt(idOrSlug, 10));
   }
 
   @Get(':id/trades')

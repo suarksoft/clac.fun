@@ -28,7 +28,7 @@ export function TokenCard({ token }: TokenCardProps) {
   }, [token.createdAt])
 
   return (
-    <Link href={`/token/${token.id}`} className="group block">
+    <Link href={`/token/${token.slug || token.id}`} className="group block">
       <div
         className={`overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 ${
           isDead

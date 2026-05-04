@@ -255,6 +255,13 @@ export class BlockchainService implements OnModuleInit {
     const id = Number(tokenId);
     const exists = await this.prisma.token.findUnique({ where: { id } });
     if (!exists) {
+      const slug = ethers.keccak256(
+        ethers.solidityPacked(
+          ['uint256', 'address', 'uint256'],
+          [BigInt(tokenId), creator as string, BigInt(block.timestamp)],
+        ),
+      ).slice(0, 42); // 0x + 40 hex chars
+
       await this.prisma.token.create({
         data: {
           id,
@@ -264,6 +271,7 @@ export class BlockchainService implements OnModuleInit {
           imageURI,
           createdAt: Number(block.timestamp),
           duration: Number(duration),
+          slug,
         },
       });
     }

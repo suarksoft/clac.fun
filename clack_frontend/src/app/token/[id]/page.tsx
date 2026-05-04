@@ -45,7 +45,6 @@ type TokenClaccedPayload = {
 
 export default function TokenDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const resolvedTokenId = Number(id)
   const [liveTrades, setLiveTrades] = useState<Trade[]>([])
   const [mounted, setMounted] = useState(false)
   const tokenQuery = useQuery({
@@ -53,13 +52,17 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
     queryFn: () => apiClient.getToken(id),
     refetchInterval: 10000,
   })
+  const token = tokenQuery.data ? toUiToken(tokenQuery.data) : null
+  // Always use the numeric ID from backend for sub-routes and contract calls.
+  // The URL param may be a slug (0x...) which Number() would mis-parse as hex.
+  const resolvedTokenId = tokenQuery.data?.id ?? 0
+  const pageTradeTokenId = BigInt(resolvedTokenId)
   const tradesQuery = useQuery({
-    queryKey: ['token-trades', id],
-    queryFn: () => apiClient.getTradesByToken(id),
+    queryKey: ['token-trades', resolvedTokenId],
+    queryFn: () => apiClient.getTradesByToken(String(resolvedTokenId)),
+    enabled: resolvedTokenId > 0,
     refetchInterval: 10000,
   })
-  const token = tokenQuery.data ? toUiToken(tokenQuery.data) : null
-  const pageTradeTokenId = Number.isFinite(resolvedTokenId) ? BigInt(resolvedTokenId) : BigInt(0)
   const death = useDeathClock(token?.createdAt ?? new Date(), token?.durationSeconds ?? 1)
   const isDead = token?.dead || death.isDead
   const [displayPrice, setDisplayPrice] = useState(0)
