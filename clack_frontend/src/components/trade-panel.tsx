@@ -65,6 +65,9 @@ export function TradePanel({
     { label: 'Max', value: 'max', isMax: true },
   ]
   const quickSellPercents = [25, 50, 75, 100]
+  const MAX_HOLDING_TOKENS = 100_000_000 // 10% of 1B max supply
+  const remainingCapacity = Math.max(MAX_HOLDING_TOKENS - walletTokenBalance, 0)
+  const atWhaleLimit = walletTokenBalance >= MAX_HOLDING_TOKENS
 
   const calculatedTokens =
     amount && amount !== 'max' && currentPrice > 0
@@ -124,7 +127,7 @@ export function TradePanel({
   }, [activeTab, parsedAmount, publicClient, tokenId, isDead])
 
   useEffect(() => {
-    if (!publicClient || !isConnected || !address || activeTab !== 'sell' || isDead) {
+    if (!publicClient || !isConnected || !address || isDead) {
       setWalletTokenBalance(0)
       return
     }
@@ -249,6 +252,19 @@ export function TradePanel({
       setErrorText('Please enter a valid amount.')
       return
     }
+    if (activeTab === 'buy') {
+      if (atWhaleLimit) {
+        setErrorText(`Wallet limit reached. Max 10% of supply (100M ${tokenSymbol}) per wallet.`)
+        return
+      }
+      const estimatedTokens = currentPrice > 0 ? Number(amount) / currentPrice : 0
+      if (estimatedTokens > remainingCapacity) {
+        setErrorText(
+          `Whale limit: this buy would exceed 100M ${tokenSymbol}. You can buy up to ${remainingCapacity.toLocaleString('en-US', { maximumFractionDigits: 0 })} more.`,
+        )
+        return
+      }
+    }
     if (activeTab === 'sell') {
       if (!balanceFetchError && walletTokenBalance <= 0) {
         setErrorText(`You do not have ${tokenSymbol} to sell.`)
@@ -348,14 +364,25 @@ export function TradePanel({
 
       <div className="mb-2 flex items-center justify-between text-[11px]">
         <span className="text-muted-foreground">
-          Balance:{' '}
-          <span className={activeTab === 'sell' && balanceFetchError ? 'text-amber-400' : 'text-foreground'}>
-            {activeTab === 'buy'
-              ? `${walletMonBalanceText} MON`
-              : balanceFetchError
-              ? 'Unable to fetch'
-              : `${walletTokenBalanceText} ${tokenSymbol}`}
-          </span>
+          {activeTab === 'buy' ? (
+            <>
+              MON:{' '}
+              <span className="text-foreground">{walletMonBalanceText}</span>
+              {isConnected && walletTokenBalance > 0 && (
+                <span className={`ml-1.5 ${atWhaleLimit ? 'text-red-400' : 'text-muted-foreground'}`}>
+                  · {tokenSymbol}: {walletTokenBalance.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  {atWhaleLimit ? ' (limit reached)' : ''}
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              Balance:{' '}
+              <span className={balanceFetchError ? 'text-amber-400' : 'text-foreground'}>
+                {balanceFetchError ? 'Unable to fetch' : `${walletTokenBalanceText} ${tokenSymbol}`}
+              </span>
+            </>
+          )}
         </span>
         <button
           type="button"
