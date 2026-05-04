@@ -371,6 +371,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                   tokenId={resolvedTokenId}
                   symbol={token.symbol}
                   currentPrice={displayPrice || token.price}
+                  virtualSupply={token.virtualSupply}
                 />
                 {isDead && (
                   <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/55 backdrop-blur-[1px]">
