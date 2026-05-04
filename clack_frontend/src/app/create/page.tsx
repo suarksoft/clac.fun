@@ -16,6 +16,7 @@ import { publicEnv } from '@/lib/env'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { apiClient } from '@/lib/api/client'
 
 // ---------------------------------------------------------------------------
 // Mini preview — mobile sticky top bar
@@ -84,6 +85,11 @@ export default function CreateTokenPage() {
   const [newTokenId, setNewTokenId] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [previewTimeLeft, setPreviewTimeLeft] = useState('06:00:00')
+  const [tokenDescription, setTokenDescription] = useState('')
+  const [tokenWebsite, setTokenWebsite] = useState('')
+  const [tokenTwitter, setTokenTwitter] = useState('')
+  const [tokenTelegram, setTokenTelegram] = useState('')
+  const [showSocials, setShowSocials] = useState(false)
 
   const router = useRouter()
   const { isConnected } = useAccount()
@@ -154,11 +160,25 @@ export default function CreateTokenPage() {
     }
     setNewTokenId(createdTokenId)
     toast.success('Token created successfully!')
+
+    // Save social links to backend (best-effort, non-blocking)
+    if (createdTokenId) {
+      const socials = {
+        description: tokenDescription.trim() || undefined,
+        website: tokenWebsite.trim() || undefined,
+        twitter: tokenTwitter.trim() || undefined,
+        telegram: tokenTelegram.trim() || undefined,
+      }
+      if (Object.values(socials).some(Boolean)) {
+        apiClient.updateTokenSocials(Number(createdTokenId), socials).catch(() => {/* ignore */})
+      }
+    }
+
     const timer = setTimeout(() => {
       router.push(createdTokenId ? `/token/${createdTokenId}` : '/')
     }, 2000)
     return () => clearTimeout(timer)
-  }, [isSuccess, receipt, router])
+  }, [isSuccess, receipt, router, tokenDescription, tokenWebsite, tokenTwitter, tokenTelegram])
 
   // Error toasts
   useEffect(() => {
@@ -490,6 +510,61 @@ export default function CreateTokenPage() {
                       )
                     })}
                   </div>
+                </div>
+
+                {/* Step 5 — Social links (optional, collapsible) */}
+                <div className="transition-opacity duration-300">
+                  <button
+                    type="button"
+                    onClick={() => setShowSocials(v => !v)}
+                    className="flex w-full items-center justify-between text-sm font-medium text-gray-300 hover:text-white"
+                  >
+                    <span>Social links <span className="text-gray-600 font-normal">(optional)</span></span>
+                    <span className="text-gray-600">{showSocials ? '▲' : '▼'}</span>
+                  </button>
+
+                  {showSocials && (
+                    <div className="mt-3 space-y-3">
+                      <textarea
+                        placeholder="Description (what's the story?)"
+                        value={tokenDescription}
+                        onChange={(e) => setTokenDescription(e.target.value)}
+                        maxLength={280}
+                        rows={2}
+                        className="w-full resize-none rounded-xl border border-gray-800 bg-gray-900 px-4 py-3 text-sm text-white placeholder-gray-600 transition-all focus:border-violet-500 focus:outline-none"
+                      />
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-600">🌐</span>
+                        <input
+                          type="url"
+                          placeholder="Website (https://...)"
+                          value={tokenWebsite}
+                          onChange={(e) => setTokenWebsite(e.target.value)}
+                          className="w-full rounded-xl border border-gray-800 bg-gray-900 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-600 transition-all focus:border-violet-500 focus:outline-none"
+                        />
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-600">𝕏</span>
+                        <input
+                          type="text"
+                          placeholder="Twitter/X (https://x.com/...)"
+                          value={tokenTwitter}
+                          onChange={(e) => setTokenTwitter(e.target.value)}
+                          className="w-full rounded-xl border border-gray-800 bg-gray-900 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-600 transition-all focus:border-violet-500 focus:outline-none"
+                        />
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-600">✈</span>
+                        <input
+                          type="text"
+                          placeholder="Telegram (https://t.me/...)"
+                          value={tokenTelegram}
+                          onChange={(e) => setTokenTelegram(e.target.value)}
+                          className="w-full rounded-xl border border-gray-800 bg-gray-900 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-600 transition-all focus:border-violet-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Launch section */}

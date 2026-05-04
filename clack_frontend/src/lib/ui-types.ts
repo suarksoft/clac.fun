@@ -25,6 +25,9 @@ export interface Token {
   claimableMon: number
   dead?: boolean
   description: string
+  website?: string
+  twitter?: string
+  telegram?: string
 }
 
 export interface Trade {

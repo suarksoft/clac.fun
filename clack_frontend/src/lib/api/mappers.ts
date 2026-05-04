@@ -64,7 +64,10 @@ export function toUiToken(token: BackendToken): Token {
     firstBuyerMultiplier: multiplier,
     claimableMon: 0,
     dead: token.dead,
-    description: `${token.symbol} on clac.fun`,
+    description: token.description || `${token.symbol} on clac.fun`,
+    website: token.website ?? undefined,
+    twitter: token.twitter ?? undefined,
+    telegram: token.telegram ?? undefined,
   }
 }
 

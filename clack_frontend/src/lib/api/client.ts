@@ -38,6 +38,15 @@ export const apiClient = {
   getPortfolio: (address: string) => fetchJson<BackendPortfolio>(`/api/portfolio/${address}`),
   getCandles: (tokenId: number, interval = '1m', limit = 200) =>
     fetchJson<CandleData[]>(`/api/trades/candles/${tokenId}?interval=${interval}&limit=${limit}`),
+  updateTokenSocials: (
+    tokenId: number,
+    data: { website?: string; twitter?: string; telegram?: string; description?: string },
+  ) =>
+    fetch(`${BACKEND_URL}/api/tokens/${tokenId}/socials`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
 }
 
 export function createSocketClient() {

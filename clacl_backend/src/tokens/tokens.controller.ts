@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Query } from '@nestjs/common';
 import { TokensService } from './tokens.service';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { TokenListQueryDto } from './dto/token-list-query.dto';
@@ -46,5 +46,13 @@ export class TokensController {
   @Get(':id/lottery')
   getTokenLottery(@Param('id', ParseIntPipe) id: number) {
     return this.tokensService.getLotteryByToken(id);
+  }
+
+  @Patch(':id/socials')
+  updateSocials(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { website?: string; twitter?: string; telegram?: string; description?: string },
+  ) {
+    return this.tokensService.updateTokenSocials(id, body);
   }
 }

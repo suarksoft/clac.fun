@@ -116,4 +116,17 @@ export class TokensService {
   async getDyingTokens() {
     return this.getAllTokens('dying', 50);
   }
+
+  async updateTokenSocials(
+    id: number,
+    data: { website?: string; twitter?: string; telegram?: string; description?: string },
+  ) {
+    const update: Record<string, string | null> = {};
+    if (data.website !== undefined) update.website = data.website || null;
+    if (data.twitter !== undefined) update.twitter = data.twitter || null;
+    if (data.telegram !== undefined) update.telegram = data.telegram || null;
+    if (data.description !== undefined) update.description = data.description || null;
+
+    return this.prisma.token.update({ where: { id }, data: update });
+  }
 }

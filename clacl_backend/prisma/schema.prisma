@@ -25,6 +25,10 @@ model Token {
   change24h      Float       @default(0)
   firstBuyPrice  String?
   slug           String?     @unique
+  description    String?
+  website        String?
+  twitter        String?
+  telegram       String?
   trades         Trade[]
   holders        Holder[]
   lotteryWins    LotteryWin[]

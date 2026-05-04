@@ -16,6 +16,10 @@ export interface BackendToken {
   change24h: number
   firstBuyPrice?: string | null
   slug?: string | null
+  description?: string | null
+  website?: string | null
+  twitter?: string | null
+  telegram?: string | null
 }
 
 export interface BackendTrade {
