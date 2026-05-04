@@ -34,31 +34,30 @@ export function useHeroStats() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(`${backendUrl}/api/tokens`);
-      if (!res.ok) return;
-      const tokens = await res.json();
       const now = Math.floor(Date.now() / 1000);
+      const [statsRes, tokensRes] = await Promise.all([
+        fetch(`${backendUrl}/api/stats`),
+        fetch(`${backendUrl}/api/tokens?filter=live&limit=50`),
+      ]);
 
-      const all = Array.isArray(tokens) ? tokens : [];
-      const live = all.filter(
-        (t: LiveToken) => !t.dead && (t.createdAt + t.duration) > now
-      );
-      const dead = all.filter((t: LiveToken) => t.dead);
+      if (statsRes.ok) {
+        const data = await statsRes.json();
+        setStats({
+          liveCount: data.liveCount ?? 0,
+          totalTrades: data.totalTrades ?? 0,
+          totalVolume: data.totalVolume ?? '0',
+          clacdCount: data.clacdCount ?? 0,
+        });
+      }
 
-      let trades = 0;
-      let volume = 0;
-      all.forEach((t: any) => {
-        trades += parseInt(t.totalTrades || '0') || 0;
-        volume += parseFloat(t.volume24h || '0') || 0;
-      });
+      if (tokensRes.ok) {
+        const tokens = await tokensRes.json();
+        const live = (Array.isArray(tokens) ? tokens : []).filter(
+          (t: LiveToken) => !t.dead && (t.createdAt + t.duration) > now
+        );
+        setLiveTokens(live);
+      }
 
-      setStats({
-        liveCount: live.length,
-        totalTrades: trades,
-        totalVolume: volume.toFixed(1),
-        clacdCount: dead.length,
-      });
-      setLiveTokens(live);
       setLoading(false);
     } catch (err) {
       console.error('Hero stats fetch failed:', err);

@@ -24,4 +24,34 @@ export class AppService {
       contractAddress: activeConfig.contractAddress,
     };
   }
+
+  async getStats() {
+    const now = Math.floor(Date.now() / 1000);
+    const [totalTrades, tokens] = await Promise.all([
+      this.prisma.trade.count(),
+      this.prisma.token.findMany({
+        select: { dead: true, createdAt: true, duration: true, volume24h: true },
+      }),
+    ]);
+
+    let totalVolume = 0;
+    let liveCount = 0;
+    let clacdCount = 0;
+
+    for (const t of tokens) {
+      totalVolume += t.volume24h;
+      if (t.dead) {
+        clacdCount++;
+      } else if (t.createdAt + t.duration > now) {
+        liveCount++;
+      }
+    }
+
+    return {
+      totalTrades,
+      totalVolume: totalVolume.toFixed(1),
+      liveCount,
+      clacdCount,
+    };
+  }
 }
