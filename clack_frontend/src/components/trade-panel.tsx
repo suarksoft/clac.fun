@@ -92,18 +92,19 @@ export function TradePanel({
   }, [activeTab])
 
   useEffect(() => {
-    if (!parsedAmount || !publicClient || isDead) {
+    // getBuyCost takes tokenAmount and returns MON cost — not usable for buy-side quote.
+    // Only query chain for sell: getSellQuote(tokenId, tokenAmount) → MON received.
+    if (!parsedAmount || !publicClient || isDead || activeTab !== 'sell') {
       setQuote(null)
       return
     }
 
     const readQuote = async () => {
       try {
-        const fn = activeTab === 'buy' ? 'getBuyCost' : 'getSellQuote'
         const result = await publicClient.readContract({
           address: CLAC_FACTORY_ADDRESS as `0x${string}`,
           abi: CLAC_FACTORY_ABI,
-          functionName: fn,
+          functionName: 'getSellQuote',
           args: [tokenId, parsedAmount],
         })
         setQuote(formatTokenPrice(Number(formatEther(result as bigint))))
@@ -353,17 +354,15 @@ export function TradePanel({
       )}
 
       <div className="mb-2 flex items-center justify-between text-[11px]">
-        <span className="text-muted-foreground">Expected</span>
+        <span className="text-muted-foreground">
+          {activeTab === 'buy' ? 'You receive ~' : 'You receive'}
+        </span>
         <span className="font-mono text-primary">
-          {activeTab === 'buy' ? `${formatMonAmount(Number(calculatedTokens), 2)} ${tokenSymbol}` : `${quote || '0'} MON`}
+          {activeTab === 'buy'
+            ? `~${formatMonAmount(Number(calculatedTokens), 2)} ${tokenSymbol}`
+            : `${quote ?? '–'} MON`}
         </span>
       </div>
-      {quote && (
-        <div className="mb-2 flex items-center justify-between text-[11px]">
-          <span className="text-muted-foreground">{activeTab === 'buy' ? 'Estimated Cost' : 'Estimated Return'}</span>
-          <span className="font-mono text-foreground">{quote} MON</span>
-        </div>
-      )}
 
       <div className="mb-3 rounded-md border border-border bg-amber-500/10 px-2.5 py-2 text-[11px] text-muted-foreground">
         You earn round points by trading and can receive extra rewards.

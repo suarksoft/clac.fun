@@ -70,7 +70,7 @@ export function HeroSection() {
                 </span>
               </h1>
               <p className="text-sm text-gray-500 max-w-sm mb-6">
-                Trade it, flip it, or hold for the lottery. When time&apos;s up: clac. 💀
+                Trade it, flip it, or hold for the lottery. When time&apos;s up — clac.
               </p>
             </div>
 

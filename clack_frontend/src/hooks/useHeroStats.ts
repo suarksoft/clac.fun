@@ -51,10 +51,19 @@ export function useHeroStats() {
       }
 
       if (tokensRes.ok) {
-        const tokens = await tokensRes.json();
-        const live = (Array.isArray(tokens) ? tokens : []).filter(
-          (t: LiveToken) => !t.dead && (t.createdAt + t.duration) > now
-        );
+        const raw = await tokensRes.json();
+        console.log('Hero raw tokens:', raw);
+        // Handle wrapped responses: { data: [] } | { tokens: [] } | []
+        const tokenList: LiveToken[] = Array.isArray(raw)
+          ? raw
+          : (raw.data ?? raw.tokens ?? []);
+        const live = tokenList.filter((t) => {
+          const isDead = t.dead ?? (t as any).isDead ?? false;
+          // createdAt may be seconds or ms — normalise to seconds
+          const createdAtSec =
+            t.createdAt > 1e10 ? Math.floor(t.createdAt / 1000) : t.createdAt;
+          return !isDead && createdAtSec + t.duration > now;
+        });
         setLiveTokens(live);
       }
 

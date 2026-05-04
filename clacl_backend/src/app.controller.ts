@@ -15,7 +15,7 @@ export class AppController {
     return this.appService.getReadiness();
   }
 
-  @Get('api/stats')
+  @Get('stats')
   getStats() {
     return this.appService.getStats();
   }

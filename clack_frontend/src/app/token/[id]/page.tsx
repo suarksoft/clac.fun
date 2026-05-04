@@ -270,7 +270,9 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                   <p className="font-mono text-lg font-bold text-foreground sm:text-xl md:text-2xl">
                     {displayMonPrice} MON
                   </p>
-                  <p className="text-sm text-emerald-500">+64.27%</p>
+                  <p className={`text-sm font-semibold ${token.priceChange24h >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+                    {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}%
+                  </p>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1 sm:gap-2">
