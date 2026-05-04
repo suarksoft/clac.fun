@@ -60,6 +60,8 @@ export default function AdminPage() {
   const [restoreFeeAfterCreate, setRestoreFeeAfterCreate] = useState(true)
   const [creationFeeWei, setCreationFeeWei] = useState<bigint>(BigInt(0))
   const [publicCreation, setPublicCreation] = useState<boolean>(false)
+  const [currentK, setCurrentK] = useState<bigint>(BigInt(0))
+  const [desiredK, setDesiredK] = useState('100000000')
   const [ownerAddress, setOwnerAddress] = useState<string>('')
   const [statusText, setStatusText] = useState<string>('')
   const [errorText, setErrorText] = useState<string>('')
@@ -110,7 +112,7 @@ export default function AdminPage() {
     if (!publicClient) return
     setIsLoadingConfig(true)
     try {
-      const [fee, isPublic, owner] = await Promise.all([
+      const [fee, isPublic, owner, kValue] = await Promise.all([
         publicClient.readContract({
           address: CLAC_FACTORY_ADDRESS as `0x${string}`,
           abi: CLAC_FACTORY_ABI,
@@ -126,11 +128,17 @@ export default function AdminPage() {
           abi: CLAC_FACTORY_ABI,
           functionName: 'owner',
         }),
+        publicClient.readContract({
+          address: CLAC_FACTORY_ADDRESS as `0x${string}`,
+          abi: CLAC_FACTORY_ABI,
+          functionName: 'k',
+        }),
       ])
 
       setCreationFeeWei(fee as bigint)
       setPublicCreation(Boolean(isPublic))
       setOwnerAddress(String(owner))
+      setCurrentK(kValue as bigint)
       setErrorText('')
     } catch (error) {
       setErrorText(
@@ -323,6 +331,32 @@ export default function AdminPage() {
       const message = error instanceof Error ? error.message : 'Public creation guncellenemedi.'
       setErrorText(message)
       toast.error('Public creation guncellenemedi.')
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  const updateK = async () => {
+    try {
+      await ensureWalletAndChain()
+      const kBigInt = BigInt(desiredK || '0')
+      setIsWorking(true)
+      setStatusText('k degeri guncelleniyor...')
+      setErrorText('')
+      const hash = await writeContractAsync({
+        address: CLAC_FACTORY_ADDRESS as `0x${string}`,
+        abi: CLAC_FACTORY_ABI,
+        functionName: 'setK',
+        args: [kBigInt],
+      })
+      await waitForTx(hash)
+      await loadConfig()
+      setStatusText(`k degeri ${kBigInt.toString()} olarak guncellendi.`)
+      toast.success('k degeri guncellendi.')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'k guncellenemedi.'
+      setErrorText(message)
+      toast.error('k guncellenemedi.')
     } finally {
       setIsWorking(false)
     }
@@ -527,6 +561,7 @@ export default function AdminPage() {
             <p>Owner: <span className="font-mono">{ownerAddress || '-'}</span></p>
             <p>Current Fee: <span className="font-mono">{isLoadingConfig ? '...' : `${creationFeeDisplay} MON`}</span></p>
             <p>Public Creation: <span className="font-mono">{String(publicCreation)}</span></p>
+            <p>Current k: <span className="font-mono">{isLoadingConfig ? '...' : currentK.toString()}</span></p>
           </div>
 
           <div className="mb-6 space-y-3 rounded-xl border border-border bg-card p-4">
@@ -556,6 +591,21 @@ export default function AdminPage() {
               >
                 Public Creation OFF
               </Button>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">
+                Set k (current: {isLoadingConfig ? '...' : currentK.toString()}). Recommended: 100000000 (1e8). Low k = whale limit hit easily.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={desiredK}
+                  onChange={(e) => setDesiredK(e.target.value)}
+                  placeholder="100000000"
+                />
+                <Button onClick={updateK} disabled={isWorking || isPending}>
+                  Set k
+                </Button>
+              </div>
             </div>
           </div>
 

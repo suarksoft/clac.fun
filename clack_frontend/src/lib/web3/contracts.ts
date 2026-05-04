@@ -66,6 +66,20 @@ export const CLAC_FACTORY_ABI = [
   {
     type: 'function',
     stateMutability: 'view',
+    name: 'k',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    stateMutability: 'nonpayable',
+    name: 'setK',
+    inputs: [{ name: '_k', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    stateMutability: 'view',
     name: 'getBuyCost',
     inputs: [
       { name: 'tokenId', type: 'uint256' },
