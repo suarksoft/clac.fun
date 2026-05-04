@@ -5,6 +5,7 @@ import { formatAddress, formatNumber, formatTimeAgo, formatTokenPrice, formatMon
 import { TokenImage } from '@/components/token-image'
 import { Copy, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
 
 interface TokenInfoPanelProps {
   token: Token
@@ -30,6 +31,12 @@ export function TokenInfoPanel({ token, totalTxns, buyCount, sellCount }: TokenI
   const totalSide = buys + sells
   const buyRate = totalSide > 0 ? (buys / totalSide) * 100 : 0
 
+  const contractAddress = CLAC_FACTORY_ADDRESS || ''
+  const deathTaxPool = token.poolBalanceMon > 0
+    ? (token.poolBalanceMon * 0.03).toFixed(4)
+    : '0'
+  const explorerUrl = `https://testnet.monadvision.com/address/${contractAddress}`
+
   return (
     <div className="space-y-3">
       <div className="rounded-xl border border-border bg-card p-3">
@@ -44,7 +51,7 @@ export function TokenInfoPanel({ token, totalTxns, buyCount, sellCount }: TokenI
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Death Tax Pool</span>
-            <span className="font-mono text-foreground">--</span>
+            <span className="font-mono text-foreground">{deathTaxPool} MON</span>
           </div>
         </div>
       </div>
@@ -66,15 +73,30 @@ export function TokenInfoPanel({ token, totalTxns, buyCount, sellCount }: TokenI
         </div>
 
         <div className="mb-3 grid grid-cols-3 gap-1.5">
-          <button className="rounded-md border border-border bg-secondary/30 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+          <a
+            href="https://t.me/clacfun"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-md border border-border bg-secondary/30 py-1.5 text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
             Telegram
-          </button>
-          <button className="rounded-md border border-border bg-secondary/30 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+          </a>
+          <a
+            href="https://x.com/devrunnel"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-md border border-border bg-secondary/30 py-1.5 text-center text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
             X
-          </button>
-          <button className="rounded-md border border-border bg-secondary/30 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
-            <ExternalLink className="mx-auto h-3.5 w-3.5" />
-          </button>
+          </a>
+          <a
+            href={explorerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-md border border-border bg-secondary/30 py-1.5 text-muted-foreground transition-colors hover:text-foreground flex items-center justify-center"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
         </div>
 
         <div className="mb-3 grid grid-cols-3 gap-2">
@@ -92,26 +114,11 @@ export function TokenInfoPanel({ token, totalTxns, buyCount, sellCount }: TokenI
           </div>
         </div>
 
-        <div className="mb-3 grid grid-cols-4 gap-1.5 text-center">
-          <div className="rounded-md border border-border bg-secondary/20 p-1.5">
-            <p className="text-[10px] text-muted-foreground">30M</p>
-            <p className="text-[11px] text-emerald-500">+11.87%</p>
-          </div>
-          <div className="rounded-md border border-border bg-secondary/20 p-1.5">
-            <p className="text-[10px] text-muted-foreground">1H</p>
-            <p className="text-[11px] text-emerald-500">+12.4%</p>
-          </div>
-          <div className="rounded-md border border-border bg-secondary/20 p-1.5">
-            <p className="text-[10px] text-muted-foreground">4H</p>
-            <p className="text-[11px] text-emerald-500">+15.69%</p>
-          </div>
-          <div className="rounded-md border border-border bg-secondary/20 p-1.5">
-            <p className="text-[10px] text-muted-foreground">24H</p>
-            <p className={`text-[11px] ${token.priceChange24h >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-              {token.priceChange24h >= 0 ? '+' : ''}
-              {token.priceChange24h.toFixed(2)}%
-            </p>
-          </div>
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground">24H</span>
+          <span className={`text-[11px] font-bold ${token.priceChange24h >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+            {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}%
+          </span>
         </div>
 
         <div className="space-y-2">
@@ -155,10 +162,10 @@ export function TokenInfoPanel({ token, totalTxns, buyCount, sellCount }: TokenI
             <div className="flex items-center justify-between rounded-md border border-border bg-secondary/20 px-2.5 py-2">
               <span className="text-[11px] text-muted-foreground">Contract Address</span>
               <button
-                onClick={() => copyToClipboard(token.id)}
+                onClick={() => copyToClipboard(contractAddress)}
                 className="flex items-center gap-1.5 text-xs text-foreground hover:text-primary"
               >
-                #{token.id}
+                {formatAddress(contractAddress)}
                 <Copy className="h-3 w-3" />
               </button>
             </div>
