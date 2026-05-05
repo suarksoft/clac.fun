@@ -64,7 +64,7 @@ export function Header() {
           </Button>
           
           <Link href="/create">
-            <Button className="hidden gap-2 bg-primary text-primary-foreground hover:bg-primary/90 md:flex">
+            <Button className="hidden gap-2 bg-violet-600 text-white hover:bg-violet-700 md:flex">
               <Plus className="h-4 w-4" />
               Create
             </Button>
@@ -121,7 +121,7 @@ export function Header() {
                 Leaderboard
               </Link>
               <Link href="/create" onClick={() => setIsMenuOpen(false)}>
-                <Button className="mt-1 min-h-[44px] w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+                <Button className="mt-1 min-h-[44px] w-full gap-2 bg-violet-600 text-white hover:bg-violet-700">
                   <Plus className="h-4 w-4" />
                   Create Token
                 </Button>
