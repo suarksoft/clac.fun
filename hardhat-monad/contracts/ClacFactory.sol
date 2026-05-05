@@ -45,7 +45,6 @@ contract ClacFactory is ReentrancyGuard {
     uint256 public constant DURATION_12H = 43200;
     uint256 public constant DURATION_24H = 86400;
     uint256 public constant BPS = 10000;
-    uint256 public constant MAX_POOL = 10_000 ether;
     uint256 public constant MAX_SUPPLY = 1_000_000_000 ether; // 1B tokens
     uint256 public constant MIN_BUY = 0.01 ether;
     uint256 public constant BUY_COOLDOWN_BLOCKS = 2;
@@ -176,7 +175,6 @@ contract ClacFactory is ReentrancyGuard {
         lastBuyBlock[tokenId][msg.sender] = block.number;
 
         Token storage t = tokens[tokenId];
-        require(t.poolBalance + msg.value <= MAX_POOL, "Pool cap reached");
 
         uint256 protocolFee = (msg.value * PROTOCOL_FEE_BPS) / BPS;
         uint256 creatorFee = (msg.value * CREATOR_FEE_BPS) / BPS;
