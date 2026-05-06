@@ -185,7 +185,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
         <LiveTicker />
-        <main className="flex flex-1 items-center justify-center text-red-400">Token verisi alinamadi.</main>
+        <main className="flex flex-1 items-center justify-center text-red-400">Failed to load token data.</main>
       </div>
     )
   }
@@ -424,6 +424,7 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
                   tokenId={pageTradeTokenId}
                   tokenSymbol={token.symbol}
                   currentPrice={token.price}
+                  virtualSupply={token.virtualSupply}
                   isDead={isDead}
                   onTradeSuccess={() => {
                     tokenQuery.refetch()
