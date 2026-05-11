@@ -1,6 +1,7 @@
 'use client'
 
 import { use, useState, useEffect, useMemo } from 'react'
+import { TokenDetailV2 } from '@/components/v2/token-detail-v2'
 import { Header } from '@/components/header'
 import { LiveTicker } from '@/components/live-ticker'
 import { PriceChart } from '@/components/price-chart'
@@ -45,6 +46,10 @@ type TokenClaccedPayload = {
 
 export default function TokenDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+
+  if (/^0x[a-fA-F0-9]{40}$/.test(id)) {
+    return <TokenDetailV2 address={id as `0x${string}`} />
+  }
   const [liveTrades, setLiveTrades] = useState<Trade[]>([])
   const [mounted, setMounted] = useState(false)
   const tokenQuery = useQuery({

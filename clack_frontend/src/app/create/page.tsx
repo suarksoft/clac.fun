@@ -5,18 +5,18 @@ import { Header } from '@/components/header'
 import {
   useAccount,
   useChainId,
+  useReadContract,
   useSwitchChain,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from 'wagmi'
-import { decodeEventLog, parseEther } from 'viem'
-import { CLAC_FACTORY_ABI, CLAC_FACTORY_ADDRESS } from '@/lib/web3/contracts'
+import { decodeEventLog, formatEther, parseEther } from 'viem'
+import { CLAC_FACTORY_V2_ABI, CLAC_FACTORY_V2_ADDRESS, estimateInitialBuyTokens } from '@/lib/web3/contracts-v2'
 import { monadTestnet } from '@/lib/web3/chains'
 import { publicEnv } from '@/lib/env'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { apiClient } from '@/lib/api/client'
 
 // ---------------------------------------------------------------------------
 // Mini preview — mobile sticky top bar
@@ -82,7 +82,7 @@ export default function CreateTokenPage() {
   const [imagePreview, setImagePreview] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const [selectedDuration, setSelectedDuration] = useState(21600)
-  const [newTokenId, setNewTokenId] = useState<string | null>(null)
+  const [newTokenAddress, setNewTokenAddress] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [previewTimeLeft, setPreviewTimeLeft] = useState('06:00:00')
   const [tokenDescription, setTokenDescription] = useState('')
@@ -90,6 +90,7 @@ export default function CreateTokenPage() {
   const [tokenTwitter, setTokenTwitter] = useState('')
   const [tokenTelegram, setTokenTelegram] = useState('')
   const [showSocials, setShowSocials] = useState(false)
+  const [initialBuyMon, setInitialBuyMon] = useState(0)
 
   const router = useRouter()
   const { isConnected } = useAccount()
@@ -98,6 +99,23 @@ export default function CreateTokenPage() {
   const { writeContract, data: hash, isPending, error } = useWriteContract()
   const { isLoading: isConfirming, isSuccess, data: receipt } =
     useWaitForTransactionReceipt({ hash })
+
+  const { data: creationFeeRaw } = useReadContract({
+    address: CLAC_FACTORY_V2_ADDRESS,
+    abi: CLAC_FACTORY_V2_ABI,
+    functionName: 'creationFee',
+  })
+
+  const { data: defaultKRaw } = useReadContract({
+    address: CLAC_FACTORY_V2_ADDRESS,
+    abi: CLAC_FACTORY_V2_ABI,
+    functionName: 'defaultK',
+  })
+
+  const creationFeeMon = creationFeeRaw ? Number(formatEther(creationFeeRaw)) : 0
+  const estimatedTokens = defaultKRaw
+    ? estimateInitialBuyTokens(initialBuyMon, defaultKRaw)
+    : 0
 
   const isWrongChain = isConnected && chainId !== monadTestnet.id
   const isDurationValid = [21600, 43200, 86400].includes(selectedDuration)
@@ -148,21 +166,20 @@ export default function CreateTokenPage() {
   // Success redirect
   useEffect(() => {
     if (!receipt || !isSuccess) return
-    let createdTokenId: string | null = null
+    let createdTokenAddress: string | null = null
     for (const log of receipt.logs) {
       try {
-        const decoded = decodeEventLog({ abi: CLAC_FACTORY_ABI, data: log.data, topics: log.topics })
+        const decoded = decodeEventLog({ abi: CLAC_FACTORY_V2_ABI, data: log.data, topics: log.topics })
         if (decoded.eventName === 'TokenCreated') {
-          createdTokenId = String(decoded.args.tokenId)
+          createdTokenAddress = (decoded.args as { token: string }).token
           break
         }
       } catch { /* ignore unrelated logs */ }
     }
-    setNewTokenId(createdTokenId)
+    setNewTokenAddress(createdTokenAddress)
     toast.success('Token created successfully!')
 
-    // Save social links to backend (best-effort, non-blocking)
-    if (createdTokenId) {
+    if (createdTokenAddress) {
       const socials = {
         description: tokenDescription.trim() || undefined,
         website: tokenWebsite.trim() || undefined,
@@ -170,12 +187,16 @@ export default function CreateTokenPage() {
         telegram: tokenTelegram.trim() || undefined,
       }
       if (Object.values(socials).some(Boolean)) {
-        apiClient.updateTokenSocials(Number(createdTokenId), socials).catch(() => {/* ignore */})
+        fetch(`${publicEnv.NEXT_PUBLIC_BACKEND_URL}/api/v2/tokens/${createdTokenAddress}/socials`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(socials),
+        }).catch(() => { /* ignore */ })
       }
     }
 
     const timer = setTimeout(() => {
-      router.push(createdTokenId ? `/token/${createdTokenId}` : '/')
+      router.push(createdTokenAddress ? `/token/${createdTokenAddress}` : '/')
     }, 2000)
     return () => clearTimeout(timer)
   }, [isSuccess, receipt, router, tokenDescription, tokenWebsite, tokenTwitter, tokenTelegram])
@@ -185,7 +206,7 @@ export default function CreateTokenPage() {
     if (!error) return
     const msg = error.message.toLowerCase()
     if (msg.includes('insufficient funds')) {
-      toast.error('Insufficient MON balance. You need 10 MON to create a token.')
+      toast.error(`Insufficient MON balance. You need at least ${creationFeeMon} MON to create a token.`)
     } else if (msg.includes('user rejected') || msg.includes('user denied') || msg.includes('rejected the request')) {
       toast.error('Transaction cancelled.')
     } else if (msg.includes('creation not public yet')) {
@@ -193,7 +214,7 @@ export default function CreateTokenPage() {
     } else {
       toast.error('Transaction failed. Please try again.')
     }
-  }, [error])
+  }, [error, creationFeeMon])
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -269,12 +290,21 @@ export default function CreateTokenPage() {
       setIsUploading(false)
     }
 
+    const minInitialTokens =
+      initialBuyMon > 0 && estimatedTokens > 0
+        ? BigInt(Math.floor(estimatedTokens * 0.95 * 1e18))
+        : BigInt(0)
+
+    const totalValue = creationFeeRaw
+      ? creationFeeRaw + (initialBuyMon > 0 ? parseEther(String(initialBuyMon)) : BigInt(0))
+      : parseEther('0')
+
     writeContract({
-      address: CLAC_FACTORY_ADDRESS as `0x${string}`,
-      abi: CLAC_FACTORY_ABI,
+      address: CLAC_FACTORY_V2_ADDRESS,
+      abi: CLAC_FACTORY_V2_ABI,
       functionName: 'createToken',
-      args: [tokenName.trim(), tokenSymbol.trim().toUpperCase(), finalImageURI || '', BigInt(selectedDuration)],
-      value: parseEther('10'),
+      args: [tokenName.trim(), tokenSymbol.trim().toUpperCase(), finalImageURI || '', BigInt(selectedDuration), minInitialTokens],
+      value: totalValue,
     })
   }
 
@@ -286,6 +316,7 @@ export default function CreateTokenPage() {
   }
 
   const durationLabel = selectedDuration === 21600 ? '6H' : selectedDuration === 43200 ? '12H' : '24H'
+  const totalCost = creationFeeMon + initialBuyMon
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-950">
@@ -512,7 +543,51 @@ export default function CreateTokenPage() {
                   </div>
                 </div>
 
-                {/* Step 5 — Social links (optional, collapsible) */}
+                {/* Initial Buy */}
+                <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <label className="text-sm font-medium text-gray-300">Initial buy <span className="text-gray-600 font-normal">(optional)</span></label>
+                    {initialBuyMon > 0 && estimatedTokens > 0 && (
+                      <span className="font-mono text-xs text-violet-400">
+                        ~{estimatedTokens < 1e6
+                          ? estimatedTokens.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                          : `${(estimatedTokens / 1e6).toFixed(2)}M`} {tokenSymbol || 'tokens'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mb-3 grid grid-cols-5 gap-2">
+                    {[0, 1, 5, 10, 20].map((amount) => (
+                      <button
+                        key={amount}
+                        type="button"
+                        onClick={() => setInitialBuyMon(amount)}
+                        className={`rounded-lg border py-2 text-xs font-bold transition-all ${
+                          initialBuyMon === amount
+                            ? 'border-violet-500 bg-violet-500/20 text-violet-300'
+                            : 'border-gray-800 bg-gray-900 text-gray-400 hover:border-gray-700 hover:text-white'
+                        }`}
+                      >
+                        {amount === 0 ? 'None' : `${amount} MON`}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    placeholder="Custom amount in MON..."
+                    value={initialBuyMon === 0 ? '' : initialBuyMon}
+                    onChange={(e) => setInitialBuyMon(Math.max(0, Number(e.target.value)))}
+                    className="w-full rounded-xl border border-gray-800 bg-gray-900 px-4 py-3 text-sm text-white placeholder-gray-600 focus:border-violet-500 focus:outline-none"
+                  />
+                  {initialBuyMon > 0 && (
+                    <p className="mt-2 text-xs text-gray-600">
+                      Be the first buyer — front-run the curve from zero supply.
+                    </p>
+                  )}
+                </div>
+
+                {/* Social links */}
                 <div className="transition-opacity duration-300">
                   <button
                     type="button"
@@ -569,9 +644,21 @@ export default function CreateTokenPage() {
 
                 {/* Launch section */}
                 <div className="border-t border-gray-800/50 pt-4">
-                  <div className="mb-4 flex items-center justify-between py-1">
-                    <span className="text-sm text-gray-400">Creation fee</span>
-                    <span className="font-mono text-base font-bold text-white">10 MON</span>
+                  <div className="mb-4 space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-400">Creation fee</span>
+                      <span className="font-mono text-white">{creationFeeMon > 0 ? `${creationFeeMon} MON` : '...'}</span>
+                    </div>
+                    {initialBuyMon > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-400">Initial buy</span>
+                        <span className="font-mono text-white">{initialBuyMon} MON</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between border-t border-gray-800/50 pt-1.5 text-sm font-bold">
+                      <span className="text-gray-300">Total</span>
+                      <span className="font-mono text-white">{totalCost > 0 ? `${totalCost} MON` : '...'}</span>
+                    </div>
                   </div>
 
                   {isWrongChain && isConnected && !isPending && !isConfirming && !isSuccess && (
@@ -620,9 +707,9 @@ export default function CreateTokenPage() {
                       <div className="mb-2 text-4xl">🎉</div>
                       <p className="text-lg font-bold text-green-400">Your token is live!</p>
                       <p className="mt-1 text-sm text-gray-400">Death clock is ticking...</p>
-                      {newTokenId && (
+                      {newTokenAddress && (
                         <div className="mt-2">
-                          <Link className="text-sm text-green-300 underline hover:text-green-200" href={`/token/${newTokenId}`}>
+                          <Link className="text-sm text-green-300 underline hover:text-green-200" href={`/token/${newTokenAddress}`}>
                             View your token →
                           </Link>
                         </div>
@@ -634,7 +721,7 @@ export default function CreateTokenPage() {
                     <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-center">
                       <p className="text-sm text-red-400">
                         {error.message?.toLowerCase().includes('insufficient')
-                          ? 'Not enough MON. You need 10 MON.'
+                          ? `Not enough MON. You need ${totalCost} MON.`
                           : error.message?.toLowerCase().includes('rejected') || error.message?.toLowerCase().includes('denied')
                           ? 'Transaction cancelled.'
                           : 'Something went wrong. Try again.'}
