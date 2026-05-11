@@ -6,7 +6,6 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
-import { BlockchainModule } from './blockchain/blockchain.module';
 import { BlockchainV2Module } from './blockchain-v2/blockchain-v2.module';
 import { TokensModule } from './tokens/tokens.module';
 import { TradesModule } from './trades/trades.module';
@@ -27,7 +26,6 @@ import { UploadModule } from './upload/upload.module';
         limit: Number(process.env.RATE_LIMIT_MAX ?? 120),
       },
     ]),
-    BlockchainModule,
     BlockchainV2Module,
     TokensModule,
     TradesModule,
