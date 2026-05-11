@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Header } from '@/components/header'
 import { LiveTicker } from '@/components/live-ticker'
 import { TradesTable } from '@/components/trades-table'
@@ -188,16 +188,18 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
   }
 
   // ── WebSocket ───────────────────────────────────────────────────────────
+  const activeTokenRef = useRef(activeToken)
+  useEffect(() => { activeTokenRef.current = activeToken }, [activeToken])
+
   useEffect(() => {
-    if (!activeToken) return
     const socket = createSocketClientV2()
     socket.on('trade', (payload: SocketTradeV2Event) => {
       if (payload.tokenAddress.toLowerCase() !== address.toLowerCase()) return
       const t: Trade = {
         id: crypto.randomUUID(),
         tokenId: address,
-        tokenSymbol: activeToken.symbol,
-        tokenImage: activeToken.image,
+        tokenSymbol: activeTokenRef.current?.symbol ?? '',
+        tokenImage: activeTokenRef.current?.image ?? '',
         type: payload.isBuy ? 'buy' : 'sell',
         account: payload.trader,
         amount: Number(formatEther(BigInt(payload.monAmount || '0'))),
@@ -209,7 +211,7 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
       setLiveTrades(prev => [t, ...prev].slice(0, 50))
     })
     return () => { socket.disconnect() }
-  }, [address, activeToken])
+  }, [address])
 
   // ── Death clock ─────────────────────────────────────────────────────────
   const death = useDeathClock(activeToken?.createdAt ?? new Date(), activeToken?.durationSeconds ?? 1)
@@ -224,7 +226,7 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
     sellCount: liveTrades.filter(t => t.type === 'sell').length,
   }), [liveTrades])
 
-  // ── Loading ─────────────────────────────────────────────────────────────
+  // ── Loading / error guards ──────────────────────────────────────────────
   if (tokenQuery.isLoading && !activeToken) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
@@ -240,6 +242,17 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
               </div>
             </div>
           </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (!activeToken) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header /><LiveTicker />
+        <main className="flex flex-1 items-center justify-center text-muted-foreground">
+          Token not found or still syncing — try again in a moment.
         </main>
       </div>
     )
