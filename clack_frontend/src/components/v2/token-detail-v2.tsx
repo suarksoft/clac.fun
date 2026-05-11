@@ -55,12 +55,6 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
     refetchInterval: 10000,
   })
 
-  useEffect(() => {
-    if (tradesQuery.data && token) {
-      setLiveTrades(tradesQuery.data.map(t => toUiTradeV2(t, token.symbol, token.image)))
-    }
-  }, [tradesQuery.data, token])
-
   // ── On-chain reads ──────────────────────────────────────────────────────
   const { data: chainData, refetch: refetchChain } = useReadContracts({
     contracts: [
@@ -74,6 +68,55 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
     query: { refetchInterval: 8000 },
   })
 
+  // Static info from chain — fallback when backend hasn't indexed yet
+  const { data: chainStatic } = useReadContracts({
+    contracts: [
+      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'name' },
+      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'symbol' },
+      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'imageURI' },
+      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'creator' },
+      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'createdAt' },
+      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'deathTime' },
+      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'poolBalance' },
+      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'virtualSupply' },
+    ],
+    query: { enabled: !token, staleTime: 60000 },
+  })
+
+  const chainFallbackToken: import('@/lib/api/mappers-v2').TokenV2Ui | null = useMemo(() => {
+    if (token || !chainStatic) return null
+    const [name, symbol, imageURI, creator, createdAt, deathTime, poolBalance, virtualSupply] = chainStatic
+    if (!name?.result) return null
+    const createdAtSec = Number(createdAt?.result ?? BigInt(0))
+    const deathTimeSec = Number(deathTime?.result ?? BigInt(0))
+    const poolMon = Number(formatEther((poolBalance?.result as bigint) ?? BigInt(0)))
+    const supplyHuman = Number(formatEther((virtualSupply?.result as bigint) ?? BigInt(0)))
+    const priceOnChain = chainData?.[3]?.result ? Number(formatEther(chainData[3].result as bigint)) : 0
+    return {
+      address,
+      name: name.result as string,
+      symbol: symbol?.result as string ?? '',
+      image: imageURI?.result as string ?? '',
+      creator: creator?.result as string ?? '',
+      createdAt: new Date(createdAtSec * 1000),
+      deathTime: new Date(deathTimeSec * 1000),
+      durationSeconds: deathTimeSec - createdAtSec,
+      price: priceOnChain,
+      virtualSupply: supplyHuman,
+      poolBalanceMon: poolMon,
+      marketCap: supplyHuman * priceOnChain,
+      volume24h: 0,
+      priceChange24h: 0,
+      holders: 0,
+      dead: false,
+      deathRequested: false,
+      deathFinalized: false,
+      proRataPool: 0,
+      lotteryPool: 0,
+      lotteryWinners: [],
+    }
+  }, [token, chainStatic, chainData, address])
+
   const isInLastHour = (chainData?.[0]?.result as boolean) ?? false
   const deathRequested = (chainData?.[1]?.result as boolean) ?? token?.deathRequested ?? false
   const deathFinalized = (chainData?.[2]?.result as boolean) ?? token?.deathFinalized ?? false
@@ -81,7 +124,14 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
   const randomnessFee = (chainData?.[4]?.result as bigint) ?? BigInt(0)
   const lotteryWinners = (chainData?.[5]?.result ? [...chainData[5].result as readonly string[]] : null) ?? token?.lotteryWinners ?? []
 
-  const displayPrice = chainPrice ?? token?.price ?? 0
+  const activeToken = token ?? chainFallbackToken
+  const displayPrice = chainPrice ?? activeToken?.price ?? 0
+
+  useEffect(() => {
+    if (tradesQuery.data && activeToken) {
+      setLiveTrades(tradesQuery.data.map(t => toUiTradeV2(t, activeToken.symbol, activeToken.image)))
+    }
+  }, [tradesQuery.data, activeToken])
 
   // ── Claimable ──────────────────────────────────────────────────────────
   const { data: claimableData, refetch: refetchClaimable } = useReadContract({
@@ -139,15 +189,15 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
 
   // ── WebSocket ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!token) return
+    if (!activeToken) return
     const socket = createSocketClientV2()
     socket.on('trade', (payload: SocketTradeV2Event) => {
       if (payload.tokenAddress.toLowerCase() !== address.toLowerCase()) return
       const t: Trade = {
         id: crypto.randomUUID(),
         tokenId: address,
-        tokenSymbol: token.symbol,
-        tokenImage: token.image,
+        tokenSymbol: activeToken.symbol,
+        tokenImage: activeToken.image,
         type: payload.isBuy ? 'buy' : 'sell',
         account: payload.trader,
         amount: Number(formatEther(BigInt(payload.monAmount || '0'))),
@@ -159,10 +209,10 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
       setLiveTrades(prev => [t, ...prev].slice(0, 50))
     })
     return () => { socket.disconnect() }
-  }, [address, token])
+  }, [address, activeToken])
 
   // ── Death clock ─────────────────────────────────────────────────────────
-  const death = useDeathClock(token?.createdAt ?? new Date(), token?.durationSeconds ?? 1)
+  const death = useDeathClock(activeToken?.createdAt ?? new Date(), activeToken?.durationSeconds ?? 1)
   const isDead = deathFinalized || death.isDead
   const canRequestDeath = !isDead && !deathRequested && death.isDead
   const canClaim = deathFinalized && !hasClaimed && totalClaimable > 0
@@ -175,7 +225,7 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
   }), [liveTrades])
 
   // ── Loading ─────────────────────────────────────────────────────────────
-  if (tokenQuery.isLoading || !token) {
+  if (tokenQuery.isLoading && !activeToken) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header /><LiveTicker />
@@ -206,7 +256,7 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
           {/* Dead banner */}
           {isDead && (
             <div className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center">
-              <p className="text-lg font-bold text-red-500">💀 {token.name} GOT CLAC&apos;D</p>
+              <p className="text-lg font-bold text-red-500">💀 {activeToken!.name} GOT CLAC&apos;D</p>
             </div>
           )}
 
@@ -225,11 +275,11 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
                   <ArrowLeft className="h-4 w-4" />
                 </Link>
                 <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
-                  <TokenImage src={token.image} alt={token.name} fill className="object-cover" />
+                  <TokenImage src={activeToken!.image} alt={activeToken!.name} fill className="object-cover" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <h1 className="truncate text-lg font-bold text-foreground sm:text-xl">{token.name}</h1>
+                    <h1 className="truncate text-lg font-bold text-foreground sm:text-xl">{activeToken!.name}</h1>
                     <span className="shrink-0 text-sm text-muted-foreground">/ MON</span>
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
@@ -244,7 +294,7 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
                     </button>
                     <span className="hidden sm:inline">|</span>
                     <span>By</span>
-                    <span className="truncate font-mono">{token.creator.slice(0, 6)}...{token.creator.slice(-4)}</span>
+                    <span className="truncate font-mono">{activeToken!.creator.slice(0, 6)}...{activeToken!.creator.slice(-4)}</span>
                     <a
                       href={`https://testnet.monadexplorer.com/address/${address}`}
                       target="_blank"
@@ -262,8 +312,8 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
                   <p className="font-mono text-lg font-bold text-foreground sm:text-xl md:text-2xl">
                     {formatTokenPrice(displayPrice)} MON
                   </p>
-                  <p className={`text-sm font-semibold ${token.priceChange24h >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
-                    {token.priceChange24h >= 0 ? '+' : ''}{token.priceChange24h.toFixed(2)}%
+                  <p className={`text-sm font-semibold ${activeToken!.priceChange24h >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+                    {activeToken!.priceChange24h >= 0 ? '+' : ''}{activeToken!.priceChange24h.toFixed(2)}%
                   </p>
                 </div>
               </div>
@@ -272,10 +322,10 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
             {/* Stats */}
             <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
               {[
-                { label: 'Market Cap', value: formatNumber(token.marketCap) },
-                { label: 'Pool Balance', value: `${formatMonAmount(token.poolBalanceMon, 4)} MON` },
-                { label: '24h Volume', value: formatNumber(token.volume24h) },
-                { label: 'Holders', value: String(token.holders) },
+                { label: 'Market Cap', value: formatNumber(activeToken!.marketCap) },
+                { label: 'Pool Balance', value: `${formatMonAmount(activeToken!.poolBalanceMon, 4)} MON` },
+                { label: '24h Volume', value: formatNumber(activeToken!.volume24h) },
+                { label: 'Holders', value: String(activeToken!.holders) },
               ].map(({ label, value }) => (
                 <div key={label} className="rounded-xl border border-border bg-secondary/40 p-3">
                   <p className="truncate text-xs text-muted-foreground">{label}</p>
@@ -337,7 +387,7 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs mb-1">Virtual Supply</p>
-                    <p className="font-mono font-semibold">{formatNumber(token.virtualSupply)}</p>
+                    <p className="font-mono font-semibold">{formatNumber(activeToken!.virtualSupply)}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs mb-1">Txns</p>
@@ -364,15 +414,15 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
                   <div className="space-y-2 font-mono text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Pool at death:</span>
-                      <span>{formatMonAmount(token.poolBalanceMon, 4)} MON</span>
+                      <span>{formatMonAmount(activeToken!.poolBalanceMon, 4)} MON</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Pro-rata (77%):</span>
-                      <span>{formatMonAmount(token.proRataPool, 4)} MON</span>
+                      <span>{formatMonAmount(activeToken!.proRataPool, 4)} MON</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Lottery (20%):</span>
-                      <span>{formatMonAmount(token.lotteryPool, 4)} MON</span>
+                      <span>{formatMonAmount(activeToken!.lotteryPool, 4)} MON</span>
                     </div>
                   </div>
 
@@ -424,9 +474,9 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
               {!deathFinalized && (
                 <TradePanelV2
                   tokenAddress={address}
-                  tokenSymbol={token.symbol}
+                  tokenSymbol={activeToken!.symbol}
                   currentPrice={displayPrice}
-                  virtualSupply={token.virtualSupply}
+                  virtualSupply={activeToken!.virtualSupply}
                   isInLastHour={isInLastHour}
                   isDead={isDead}
                   onTradeSuccess={() => { tokenQuery.refetch(); tradesQuery.refetch(); refetchChain() }}
@@ -448,31 +498,31 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
               <div className="rounded-xl border border-border bg-card p-4 space-y-3">
                 <h3 className="text-sm font-semibold text-foreground">Token Info</h3>
                 <div className="space-y-2 text-xs text-muted-foreground">
-                  {token.description && <p>{token.description}</p>}
+                  {activeToken!.description && <p>{activeToken!.description}</p>}
                   <div className="flex justify-between">
                     <span>Created</span>
-                    <span className="font-mono">{mounted ? formatTimeAgo(token.createdAt) : '--'}</span>
+                    <span className="font-mono">{mounted ? formatTimeAgo(activeToken!.createdAt) : '--'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Duration</span>
-                    <span className="font-mono">{token.durationSeconds / 3600}h</span>
+                    <span className="font-mono">{activeToken!.durationSeconds / 3600}h</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Holders</span>
-                    <span className="font-mono">{token.holders}</span>
+                    <span className="font-mono">{activeToken!.holders}</span>
                   </div>
-                  {token.website && (
-                    <a href={token.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground transition-colors">
+                  {activeToken!.website && (
+                    <a href={activeToken!.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground transition-colors">
                       🌐 Website
                     </a>
                   )}
-                  {token.twitter && (
-                    <a href={token.twitter} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground transition-colors">
+                  {activeToken!.twitter && (
+                    <a href={activeToken!.twitter} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground transition-colors">
                       𝕏 Twitter
                     </a>
                   )}
-                  {token.telegram && (
-                    <a href={token.telegram} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground transition-colors">
+                  {activeToken!.telegram && (
+                    <a href={activeToken!.telegram} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground transition-colors">
                       ✈ Telegram
                     </a>
                   )}
