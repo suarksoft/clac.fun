@@ -1,0 +1,7 @@
+{
+  "ClacFactoryV2MockModule": {
+    "treasury": "0x94C0Eed75bD91684621D0b8464e289356E95A3EF",
+    "k": "10000000000",
+    "mockFee": "0"
+  }
+}

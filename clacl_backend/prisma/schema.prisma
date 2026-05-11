@@ -88,3 +88,130 @@ model SyncState {
   lastBlockNumber Int @default(0)
   chainId         Int @default(10143)
 }
+
+// ═══════════════════════════════════════════════════════════════
+//                          V2 MODELS
+//   Per-token EIP-1167 clone architecture (ClacFactoryV2)
+// ═══════════════════════════════════════════════════════════════
+
+model TokenV2 {
+  // Primary key is the clone contract address (lowercase 0x-prefixed hex)
+  address           String   @id
+  factoryAddress    String
+  creator           String
+  name              String
+  symbol            String
+  imageURI          String
+  k                 String
+  duration          Int
+  createdAt         Int
+  deathTime         Int
+
+  virtualSupply     String   @default("0")
+  poolBalance       String   @default("0")
+  totalHolders      Int      @default(0)
+  totalLotteryWeight String  @default("0")
+
+  marketCap         Float    @default(0)
+  currentPrice      String   @default("0")
+  volume24h         Float    @default(0)
+  change24h         Float    @default(0)
+  firstBuyPrice     String?
+
+  // Death/lottery state
+  deathRequested    Boolean  @default(false)
+  deathFinalized    Boolean  @default(false)
+  deathRequestedBy  String?
+  deathRequestedAt  Int?
+  deathFinalizedAt  Int?
+  proRataPool       String?
+  lotteryPool       String?
+  lotteryShare      String?
+  totalSupplySnapshot String?
+  lotteryWinners    Json?
+  swept             Boolean  @default(false)
+
+  // Socials
+  slug              String?  @unique
+  description       String?
+  website           String?
+  twitter           String?
+  telegram          String?
+
+  trades            TradeV2[]
+  holders           HolderV2[]
+  lotteryWins       LotteryWinV2[]
+  claims            ClaimV2[]
+
+  indexedAt         DateTime @default(now())
+
+  @@index([factoryAddress])
+  @@index([deathFinalized, volume24h(sort: Desc)])
+  @@index([deathTime])
+}
+
+model TradeV2 {
+  id            Int      @id @default(autoincrement())
+  tokenAddress  String
+  token         TokenV2  @relation(fields: [tokenAddress], references: [address])
+  trader        String
+  isBuy         Boolean
+  tokenAmount   String
+  monAmount     String
+  protocolFee   String
+  creatorFee    String
+  newSupply     String
+  newPrice      String
+  txHash        String
+  logIndex      Int
+  blockNumber   Int
+  timestamp     DateTime @default(now())
+
+  @@unique([txHash, logIndex])
+  @@index([tokenAddress, timestamp(sort: Desc)])
+  @@index([trader])
+}
+
+model HolderV2 {
+  id            Int      @id @default(autoincrement())
+  tokenAddress  String
+  token         TokenV2  @relation(fields: [tokenAddress], references: [address])
+  address       String
+  balance       String
+  lotteryWeight String   @default("0")
+
+  @@unique([tokenAddress, address])
+  @@index([address])
+}
+
+model LotteryWinV2 {
+  id            Int      @id @default(autoincrement())
+  tokenAddress  String
+  token         TokenV2  @relation(fields: [tokenAddress], references: [address])
+  winner        String
+  amount        String
+  txHash        String
+  timestamp     DateTime @default(now())
+
+  @@index([winner])
+}
+
+model ClaimV2 {
+  id            Int      @id @default(autoincrement())
+  tokenAddress  String
+  token         TokenV2  @relation(fields: [tokenAddress], references: [address])
+  holder        String
+  proRataAmount String
+  lotteryAmount String
+  txHash        String   @unique
+  timestamp     DateTime @default(now())
+
+  @@index([holder])
+}
+
+model SyncStateV2 {
+  id              Int    @id @default(1)
+  lastBlockNumber Int    @default(0)
+  chainId         Int    @default(10143)
+  factoryAddress  String @default("")
+}

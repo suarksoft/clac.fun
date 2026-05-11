@@ -7,6 +7,10 @@
     "test": "hardhat test",
     "deploy:testnet": "hardhat ignition deploy ignition/modules/ClacFactory.ts --network monadTestnet --parameters ignition/parameters/testnet.json",
     "deploy:mainnet": "hardhat ignition deploy ignition/modules/ClacFactory.ts --network monadMainnet --parameters ignition/parameters/mainnet.json",
+    "deploy:testnet:v2": "hardhat ignition deploy ignition/modules/ClacFactoryV2.ts --network monadTestnet --parameters ignition/parameters/testnet-v2.json",
+    "deploy:mainnet:v2": "hardhat ignition deploy ignition/modules/ClacFactoryV2.ts --network monadMainnet --parameters ignition/parameters/mainnet-v2.json",
+    "deploy:testnet:v2:mock": "hardhat ignition deploy ignition/modules/ClacFactoryV2Mock.ts --network monadTestnet --parameters ignition/parameters/testnet-v2-mock.json",
+    "swap:randomness": "hardhat run scripts/swap-randomness-provider.ts",
     "pre-deploy-check": "hardhat run scripts/pre-deploy-check.ts --network monadMainnet",
     "verify:testnet": "hardhat verify --network monadTestnet",
     "verify:mainnet": "hardhat verify --network monadMainnet"

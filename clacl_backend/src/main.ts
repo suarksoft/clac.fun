@@ -1,3 +1,8 @@
+// Load .env before any other import so module-level process.env reads
+// (e.g. config/monad.config.ts) see the values during local dev.
+// On Render the env vars are set by the platform, so dotenv is a no-op there.
+import 'dotenv/config';
+
 import { NestFactory } from '@nestjs/core';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { ValidationPipe } from '@nestjs/common';

@@ -1,0 +1,11 @@
+{
+  "_comment": "Pyth Entropy may not be available on Monad mainnet at deploy time. Verify pythEntropy + pythProvider against https://docs.pyth.network/entropy/chainlist before mainnet deploy. If unavailable, this deploy must wait until Pyth is live on mainnet.",
+  "ClacFactoryV2Module": {
+    "treasury": "0x0000000000000000000000000000000000000001",
+    "k": "10000000000",
+    "pythEntropy": "0x0000000000000000000000000000000000000000",
+    "pythProvider": "0x0000000000000000000000000000000000000000",
+    "randomnessGas": "1500000",
+    "useMockRandomness": false
+  }
+}

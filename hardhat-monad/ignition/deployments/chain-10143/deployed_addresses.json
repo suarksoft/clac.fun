@@ -1,3 +1,6 @@
 {
-  "ClacFactoryModule#ClacFactory": "0xd57D7Bd6b1f86Df12dF02B6CCC3e8e3202c3a340"
+  "ClacFactoryV2MockModule#ClacTokenImpl": "0x734822B2d7a02c2c3E3a23DF275aF8A031340f97",
+  "ClacFactoryV2MockModule#MockRandomnessProvider": "0xF15069da8B8232dfacC9201519E5bdc70e120291",
+  "ClacFactoryV2MockModule#ClacFactoryV2": "0x7ba6B348db116c046c0884F72dE24093E907AFB6",
+  "ClacFactoryV2MockModule#ClacTrophyNFT": "0xB8D8c7a741Ac8f2ef5cFEB21f22F880dBD591ee1"
 }

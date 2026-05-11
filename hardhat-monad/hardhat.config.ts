@@ -19,6 +19,7 @@ const config: HardhatUserConfig = {
         runs: 200,
       },
       viaIR: true,
+      evmVersion: "cancun",
       metadata: {
         bytecodeHash: "ipfs", // Required for Sourcify verification
       },

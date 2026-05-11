@@ -4,8 +4,14 @@ import { spawnSync } from 'node:child_process';
 
 const BASELINE_MIGRATION = process.env.PRISMA_BASELINE_MIGRATION ?? '20260422120000_init';
 
+// Resolve the prisma binary directly so we don't depend on `npx` (not available
+// on local-dev systems that only ship `pnpm`). Render production has `npx`.
+const PRISMA_BIN = process.env.PRISMA_BIN ?? (process.platform === 'win32'
+  ? 'node_modules/.bin/prisma.cmd'
+  : 'node_modules/.bin/prisma');
+
 function runPrisma(args) {
-  const result = spawnSync('npx', ['prisma', ...args], {
+  const result = spawnSync(PRISMA_BIN, args, {
     stdio: 'pipe',
     encoding: 'utf8',
     env: process.env,
