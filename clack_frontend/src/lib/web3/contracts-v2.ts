@@ -80,7 +80,7 @@ export const V2_MAX_SUPPLY = 1_000_000_000
  * Returns tokens in human units (not wei).
  */
 export function estimateInitialBuyTokens(inputMON: number, kRaw: bigint): number {
-  if (inputMON <= 0 || kRaw === 0n) return 0
+  if (inputMON <= 0 || kRaw === BigInt(0)) return 0
   const netMON = inputMON * 0.985
   const K = Number(kRaw) / 1e18
   return Math.pow((netMON * 3) / (2 * K), 2 / 3)
@@ -91,7 +91,7 @@ export function estimateInitialBuyTokens(inputMON: number, kRaw: bigint): number
  * Returns MON in human units (includes fees).
  */
 export function estimateInitialBuyCost(targetTokens: number, kRaw: bigint): number {
-  if (targetTokens <= 0 || kRaw === 0n) return 0
+  if (targetTokens <= 0 || kRaw === BigInt(0)) return 0
   const K = Number(kRaw) / 1e18
   const gross = K * (2 / 3) * Math.pow(targetTokens, 1.5)
   return gross / 0.985
