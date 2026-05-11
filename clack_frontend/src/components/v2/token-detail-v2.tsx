@@ -68,8 +68,8 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
     query: { refetchInterval: 8000 },
   })
 
-  // Static info from chain — fallback when backend hasn't indexed yet
-  const { data: chainStatic } = useReadContracts({
+  // Static info from chain — always fetched, used as fallback when backend hasn't indexed yet
+  const { data: chainStatic, isLoading: chainStaticLoading } = useReadContracts({
     contracts: [
       { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'name' },
       { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'symbol' },
@@ -80,7 +80,7 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
       { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'poolBalance' },
       { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'virtualSupply' },
     ],
-    query: { enabled: !token, staleTime: 60000 },
+    query: { staleTime: 60000 },
   })
 
   const chainFallbackToken: import('@/lib/api/mappers-v2').TokenV2Ui | null = useMemo(() => {
@@ -227,7 +227,7 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
   }), [liveTrades])
 
   // ── Loading / error guards ──────────────────────────────────────────────
-  if (tokenQuery.isLoading && !activeToken) {
+  if (!activeToken && (tokenQuery.isLoading || chainStaticLoading)) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header /><LiveTicker />
