@@ -21,7 +21,7 @@ export class AppService {
       status: 'ready',
       database: 'ok',
       chainId: activeConfig.chainId,
-      contractAddress: activeConfig.contractAddress,
+      factoryAddress: activeConfig.factoryAddress,
     };
   }
 

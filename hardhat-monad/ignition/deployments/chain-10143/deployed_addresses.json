@@ -1,6 +1,6 @@
 {
-  "ClacFactoryV2MockModule#ClacTokenImpl": "0x734822B2d7a02c2c3E3a23DF275aF8A031340f97",
-  "ClacFactoryV2MockModule#MockRandomnessProvider": "0xF15069da8B8232dfacC9201519E5bdc70e120291",
-  "ClacFactoryV2MockModule#ClacFactoryV2": "0x7ba6B348db116c046c0884F72dE24093E907AFB6",
-  "ClacFactoryV2MockModule#ClacTrophyNFT": "0xB8D8c7a741Ac8f2ef5cFEB21f22F880dBD591ee1"
+  "ClacFactoryV2MockModule#ClacTokenImpl": "0x05a84A23111c1CE88287fb388ab4b77904F0c248",
+  "ClacFactoryV2MockModule#MockRandomnessProvider": "0xAbC622174F0e5Bb4E166A5860332ff941A29384d",
+  "ClacFactoryV2MockModule#ClacFactoryV2": "0x4093a7D5624B854A0f5cBBbD0b751a1aCe8049eD",
+  "ClacFactoryV2MockModule#ClacTrophyNFT": "0x607756a786fCeb83370A33d7391AdFf8Fd7531DF"
 }

@@ -44,8 +44,7 @@ export class HealthController {
     return {
       status: 'ok',
       chainId: activeConfig.chainId,
-      factoryV1: activeConfig.contractAddress || null,
-      factoryV2: activeConfig.factoryV2Address || null,
+      factory: activeConfig.factoryAddress || null,
       checks,
     };
   }

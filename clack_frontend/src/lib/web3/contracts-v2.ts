@@ -2,7 +2,7 @@ import { parseAbi } from 'viem'
 import { publicEnv } from '@/lib/env'
 
 export const CLAC_FACTORY_V2_ADDRESS =
-  (publicEnv.NEXT_PUBLIC_FACTORY_V2_ADDRESS ?? '0x0000000000000000000000000000000000000000') as `0x${string}`
+  (publicEnv.NEXT_PUBLIC_FACTORY_ADDRESS ?? '0x0000000000000000000000000000000000000000') as `0x${string}`
 
 export const CLAC_FACTORY_V2_ABI = parseAbi([
   'event TokenCreated(address indexed token, address indexed creator, uint256 indexed index, string name, string symbol, string imageURI, uint256 duration, uint256 k)',

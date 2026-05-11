@@ -36,9 +36,9 @@ export class BlockchainV2Service implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    if (!activeConfig.factoryV2Address) {
+    if (!activeConfig.factoryAddress) {
       this.logger.warn(
-        'MONAD_FACTORY_V2_ADDRESS empty — v2 listener disabled.',
+        'MONAD_FACTORY_ADDRESS empty — listener disabled.',
       );
       return;
     }
@@ -66,7 +66,7 @@ export class BlockchainV2Service implements OnModuleInit {
     try {
       this.provider = new ethers.WebSocketProvider(activeConfig.wsUrl);
       this.factory = new ethers.Contract(
-        activeConfig.factoryV2Address,
+        activeConfig.factoryAddress,
         CLAC_FACTORY_V2_ABI,
         this.provider,
       );
@@ -78,7 +78,7 @@ export class BlockchainV2Service implements OnModuleInit {
       );
       this.provider = new ethers.JsonRpcProvider(activeConfig.rpcUrl);
       this.factory = new ethers.Contract(
-        activeConfig.factoryV2Address,
+        activeConfig.factoryAddress,
         CLAC_FACTORY_V2_ABI,
         this.provider,
       );
@@ -89,7 +89,7 @@ export class BlockchainV2Service implements OnModuleInit {
   private async resetSyncStateIfChainChanged() {
     const sync = await this.prisma.syncStateV2.findUnique({ where: { id: 1 } });
     const targetChain = activeConfig.chainId;
-    const targetFactory = activeConfig.factoryV2Address.toLowerCase();
+    const targetFactory = activeConfig.factoryAddress.toLowerCase();
     if (
       !sync ||
       sync.chainId !== targetChain ||
@@ -152,7 +152,7 @@ export class BlockchainV2Service implements OnModuleInit {
       k,
     ] = args;
     const tokenAddr = String(tokenAddress).toLowerCase();
-    const factoryAddr = activeConfig.factoryV2Address.toLowerCase();
+    const factoryAddr = activeConfig.factoryAddress.toLowerCase();
 
     const exists = await this.prisma.tokenV2.findUnique({
       where: { address: tokenAddr },
@@ -549,7 +549,7 @@ export class BlockchainV2Service implements OnModuleInit {
       c.virtualSupply(),
       c.poolBalance(),
     ]);
-    const factoryAddr = activeConfig.factoryV2Address.toLowerCase();
+    const factoryAddr = activeConfig.factoryAddress.toLowerCase();
     const slug = `v2-${address.toLowerCase().slice(2, 14)}`;
 
     await this.prisma.tokenV2.upsert({
@@ -611,7 +611,7 @@ export class BlockchainV2Service implements OnModuleInit {
         id: 1,
         lastBlockNumber: safeHead,
         chainId: activeConfig.chainId,
-        factoryAddress: activeConfig.factoryV2Address.toLowerCase(),
+        factoryAddress: activeConfig.factoryAddress.toLowerCase(),
       },
       update: { lastBlockNumber: safeHead },
     });

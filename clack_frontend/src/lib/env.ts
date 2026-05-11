@@ -9,7 +9,7 @@ const publicEnvSchema = z.object({
     .string()
     .regex(/^0x[a-fA-F0-9]{40}$/),
   NEXT_PUBLIC_SITE_URL: z.string().url(),
-  NEXT_PUBLIC_FACTORY_V2_ADDRESS: z
+  NEXT_PUBLIC_FACTORY_ADDRESS: z
     .string()
     .regex(/^0x[a-fA-F0-9]{40}$/)
     .optional(),
@@ -22,7 +22,7 @@ const parsed = publicEnvSchema.safeParse({
   NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
   NEXT_PUBLIC_CLAC_FACTORY_ADDRESS: process.env.NEXT_PUBLIC_CLAC_FACTORY_ADDRESS,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-  NEXT_PUBLIC_FACTORY_V2_ADDRESS: process.env.NEXT_PUBLIC_FACTORY_V2_ADDRESS,
+  NEXT_PUBLIC_FACTORY_ADDRESS: process.env.NEXT_PUBLIC_FACTORY_ADDRESS,
 })
 
 if (!parsed.success) {
