@@ -27,7 +27,7 @@ export class BlockchainService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    if (!activeConfig.contractAddress) {
+    if (!activeConfig.factoryAddress) {
       this.logger.warn(
         'MONAD_CONTRACT_ADDRESS empty. Blockchain listener pasif durumda.',
       );
@@ -55,7 +55,7 @@ export class BlockchainService implements OnModuleInit {
     try {
       this.provider = new ethers.WebSocketProvider(activeConfig.wsUrl);
       this.contract = new ethers.Contract(
-        activeConfig.contractAddress,
+        activeConfig.factoryAddress,
         CLAC_FACTORY_ABI,
         this.provider,
       );
@@ -69,7 +69,7 @@ export class BlockchainService implements OnModuleInit {
       );
       this.provider = new ethers.JsonRpcProvider(activeConfig.rpcUrl);
       this.contract = new ethers.Contract(
-        activeConfig.contractAddress,
+        activeConfig.factoryAddress,
         CLAC_FACTORY_ABI,
         this.provider,
       );
