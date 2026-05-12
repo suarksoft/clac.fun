@@ -30,64 +30,71 @@ import type { Trade } from '@/lib/ui-types'
 import type { SocketTradeV2Event } from '@/lib/api/types-v2'
 
 interface TokenDetailV2Props {
-  address: `0x${string}`
+  idOrSlug: string
 }
 
-export function TokenDetailV2({ address }: TokenDetailV2Props) {
+const ZERO_ADDR = '0x0000000000000000000000000000000000000000' as `0x${string}`
+
+export function TokenDetailV2({ idOrSlug }: TokenDetailV2Props) {
   const [liveTrades, setLiveTrades] = useState<Trade[]>([])
   const [mounted, setMounted] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
   const MAX_RETRIES = 8
 
   useEffect(() => { setMounted(true) }, [])
-  useEffect(() => { setRetryCount(0) }, [address])
+  useEffect(() => { setRetryCount(0) }, [idOrSlug])
 
   const { address: walletAddress, isConnected } = useAccount()
 
   // ── Backend data ────────────────────────────────────────────────────────
   const tokenQuery = useQuery({
-    queryKey: ['v2-token', address],
-    queryFn: () => apiClientV2.getToken(address),
+    queryKey: ['v2-token', idOrSlug],
+    queryFn: () => apiClientV2.getToken(idOrSlug),
     refetchInterval: 10000,
   })
   const token = tokenQuery.data ? toUiTokenV2(tokenQuery.data) : null
 
+  // Resolved on-chain address: from backend response OR from idOrSlug if it's already a full address
+  const isFullAddress = /^0x[a-fA-F0-9]{40}$/.test(idOrSlug)
+  const resolvedAddress = (tokenQuery.data?.address ?? (isFullAddress ? idOrSlug : null)) as `0x${string}` | null
+  const chainAddr = resolvedAddress ?? ZERO_ADDR
+
   const tradesQuery = useQuery({
-    queryKey: ['v2-trades', address],
-    queryFn: () => apiClientV2.getTrades(address),
+    queryKey: ['v2-trades', idOrSlug],
+    queryFn: () => apiClientV2.getTrades(resolvedAddress ?? idOrSlug),
     refetchInterval: 10000,
   })
 
   // ── On-chain reads ──────────────────────────────────────────────────────
   const { data: chainData, refetch: refetchChain } = useReadContracts({
     contracts: [
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'isInLastHour' },
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'deathRequested' },
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'deathFinalized' },
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'getPrice' },
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'getRandomnessFee' },
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'getLotteryWinners' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'isInLastHour' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'deathRequested' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'deathFinalized' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'getPrice' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'getRandomnessFee' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'getLotteryWinners' },
     ],
-    query: { refetchInterval: 8000 },
+    query: { refetchInterval: 8000, enabled: !!resolvedAddress },
   })
 
-  // Static info from chain — always fetched, used as fallback when backend hasn't indexed yet
+  // Static info from chain — used as fallback when backend hasn't indexed yet (only for full-address navigation)
   const { data: chainStatic, isLoading: chainStaticLoading, refetch: refetchChainStatic } = useReadContracts({
     contracts: [
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'name' },
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'symbol' },
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'imageURI' },
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'creator' },
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'createdAt' },
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'deathTime' },
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'poolBalance' },
-      { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'virtualSupply' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'name' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'symbol' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'imageURI' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'creator' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'createdAt' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'deathTime' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'poolBalance' },
+      { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'virtualSupply' },
     ],
-    query: { staleTime: 60000 },
+    query: { staleTime: 60000, enabled: isFullAddress },
   })
 
   const chainFallbackToken: import('@/lib/api/mappers-v2').TokenV2Ui | null = useMemo(() => {
-    if (token || !chainStatic) return null
+    if (token || !chainStatic || !resolvedAddress) return null
     const [name, symbol, imageURI, creator, createdAt, deathTime, poolBalance, virtualSupply] = chainStatic
     if (!name?.result) return null
     const createdAtSec = Number(createdAt?.result ?? BigInt(0))
@@ -96,7 +103,7 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
     const supplyHuman = Number(formatEther((virtualSupply?.result as bigint) ?? BigInt(0)))
     const priceOnChain = chainData?.[3]?.result ? Number(formatEther(chainData[3].result as bigint)) : 0
     return {
-      address,
+      address: resolvedAddress,
       name: name.result as string,
       symbol: symbol?.result as string ?? '',
       image: imageURI?.result as string ?? '',
@@ -118,7 +125,7 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
       lotteryPool: 0,
       lotteryWinners: [],
     }
-  }, [token, chainStatic, chainData, address])
+  }, [token, chainStatic, chainData, resolvedAddress])
 
   const isInLastHour = (chainData?.[0]?.result as boolean) ?? false
   const deathRequested = (chainData?.[1]?.result as boolean) ?? token?.deathRequested ?? false
@@ -150,11 +157,11 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
 
   // ── Claimable ──────────────────────────────────────────────────────────
   const { data: claimableData, refetch: refetchClaimable } = useReadContract({
-    address,
+    address: chainAddr,
     abi: CLAC_TOKEN_V2_ABI,
     functionName: 'getClaimable',
-    args: [walletAddress ?? '0x0000000000000000000000000000000000000000'],
-    query: { enabled: isConnected && Boolean(walletAddress) && deathFinalized, refetchInterval: 10000 },
+    args: [walletAddress ?? ZERO_ADDR],
+    query: { enabled: isConnected && Boolean(walletAddress) && deathFinalized && !!resolvedAddress, refetchInterval: 10000 },
   })
   const [proRataClaimable, lotteryClaimable] = claimableData
     ? [Number(formatEther((claimableData as [bigint, bigint])[0])), Number(formatEther((claimableData as [bigint, bigint])[1]))]
@@ -162,19 +169,19 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
   const totalClaimable = proRataClaimable + lotteryClaimable
 
   const { data: hasClaimed } = useReadContract({
-    address,
+    address: chainAddr,
     abi: CLAC_TOKEN_V2_ABI,
     functionName: 'claimed',
-    args: [walletAddress ?? '0x0000000000000000000000000000000000000000'],
-    query: { enabled: isConnected && Boolean(walletAddress) && deathFinalized },
+    args: [walletAddress ?? ZERO_ADDR],
+    query: { enabled: isConnected && Boolean(walletAddress) && deathFinalized && !!resolvedAddress },
   })
 
   const { data: trophyMinted } = useReadContract({
-    address,
+    address: chainAddr,
     abi: CLAC_TOKEN_V2_ABI,
     functionName: 'trophyMinted',
-    args: [walletAddress ?? '0x0000000000000000000000000000000000000000'],
-    query: { enabled: isConnected && Boolean(walletAddress) && deathFinalized },
+    args: [walletAddress ?? ZERO_ADDR],
+    query: { enabled: isConnected && Boolean(walletAddress) && deathFinalized && !!resolvedAddress },
   })
 
   // ── Write actions ───────────────────────────────────────────────────────
@@ -183,8 +190,9 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
   const isBusy = isPending || isConfirming
 
   const handleRequestDeath = async () => {
+    if (!resolvedAddress) return
     await writeContractAsync({
-      address,
+      address: resolvedAddress,
       abi: CLAC_TOKEN_V2_ABI,
       functionName: 'requestDeath',
       value: randomnessFee,
@@ -193,12 +201,14 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
   }
 
   const handleClaim = async () => {
-    await writeContractAsync({ address, abi: CLAC_TOKEN_V2_ABI, functionName: 'claim' })
+    if (!resolvedAddress) return
+    await writeContractAsync({ address: resolvedAddress, abi: CLAC_TOKEN_V2_ABI, functionName: 'claim' })
     setTimeout(() => { refetchClaimable(); refetchChain() }, 3000)
   }
 
   const handleMintTrophy = async () => {
-    await writeContractAsync({ address, abi: CLAC_TOKEN_V2_ABI, functionName: 'mintTrophy' })
+    if (!resolvedAddress) return
+    await writeContractAsync({ address: resolvedAddress, abi: CLAC_TOKEN_V2_ABI, functionName: 'mintTrophy' })
     setTimeout(() => { refetchChain() }, 3000)
   }
 
@@ -209,10 +219,10 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
   useEffect(() => {
     const socket = createSocketClientV2()
     socket.on('trade', (payload: SocketTradeV2Event) => {
-      if (payload.tokenAddress.toLowerCase() !== address.toLowerCase()) return
+      if (!resolvedAddress || payload.tokenAddress.toLowerCase() !== resolvedAddress.toLowerCase()) return
       const t: Trade = {
         id: crypto.randomUUID(),
-        tokenId: address,
+        tokenId: resolvedAddress ?? idOrSlug,
         tokenSymbol: activeTokenRef.current?.symbol ?? '',
         tokenImage: activeTokenRef.current?.image ?? '',
         type: payload.isBuy ? 'buy' : 'sell',
@@ -226,7 +236,7 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
       setLiveTrades(prev => [t, ...prev].slice(0, 50))
     })
     return () => { socket.disconnect() }
-  }, [address])
+  }, [resolvedAddress, idOrSlug])
 
   // ── Death clock ─────────────────────────────────────────────────────────
   const death = useDeathClock(activeToken?.createdAt ?? new Date(), activeToken?.durationSeconds ?? 1)
@@ -271,7 +281,7 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
         <main className="flex flex-1 flex-col items-center justify-center gap-4 text-muted-foreground">
           <p className="text-lg font-semibold text-foreground">Token not found</p>
           <p className="text-sm">
-            No token at <span className="font-mono text-xs">{address.slice(0, 8)}...{address.slice(-6)}</span>
+            No token for <span className="font-mono text-xs">{idOrSlug.length > 20 ? `${idOrSlug.slice(0, 8)}...${idOrSlug.slice(-6)}` : idOrSlug}</span>
           </p>
           <button
             onClick={() => { setRetryCount(0) }}
@@ -328,17 +338,17 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
                     <span>Contract:</span>
                     <button
                       type="button"
-                      onClick={() => navigator.clipboard.writeText(address)}
+                      onClick={() => navigator.clipboard.writeText(resolvedAddress ?? idOrSlug)}
                       className="flex items-center gap-1 font-mono transition-colors hover:text-foreground"
                     >
-                      {address.slice(0, 6)}...{address.slice(-4)}
+                      {resolvedAddress ? `${resolvedAddress.slice(0, 6)}...${resolvedAddress.slice(-4)}` : idOrSlug}
                       <Copy className="h-3 w-3" />
                     </button>
                     <span className="hidden sm:inline">|</span>
                     <span>By</span>
                     <span className="truncate font-mono">{activeToken!.creator.slice(0, 6)}...{activeToken!.creator.slice(-4)}</span>
                     <a
-                      href={`https://testnet.monadexplorer.com/address/${address}`}
+                      href={`https://testnet.monadexplorer.com/address/${resolvedAddress ?? idOrSlug}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 transition-colors hover:text-foreground"
@@ -513,9 +523,9 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
               )}
 
               {/* Trade panel (live) */}
-              {!deathFinalized && (
+              {!deathFinalized && resolvedAddress && (
                 <TradePanelV2
-                  tokenAddress={address}
+                  tokenAddress={resolvedAddress}
                   tokenSymbol={activeToken!.symbol}
                   currentPrice={displayPrice}
                   virtualSupply={activeToken!.virtualSupply}
