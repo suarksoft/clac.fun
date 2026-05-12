@@ -1,4 +1,4 @@
-import { createConfig, http } from 'wagmi'
+import { createConfig, fallback, http } from 'wagmi'
 import { injected, metaMask } from 'wagmi/connectors'
 import { connectorsForWallets } from '@rainbow-me/rainbowkit'
 import {
@@ -45,7 +45,10 @@ export const wagmiConfig = createConfig({
   chains: [activeChain],
   connectors,
   transports: {
-    [monadTestnet.id]: http(publicEnv.NEXT_PUBLIC_MONAD_RPC),
+    [monadTestnet.id]: fallback([
+      http(publicEnv.NEXT_PUBLIC_MONAD_RPC),
+      http('https://monad-testnet.drpc.org'),
+    ], { rank: false }),
     [monadMainnet.id]: http(publicEnv.NEXT_PUBLIC_MONAD_RPC),
   },
   ssr: false,

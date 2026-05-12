@@ -77,7 +77,7 @@ export function TokenDetailV2({ idOrSlug }: TokenDetailV2Props) {
       { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'getRandomnessFee' },
       { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'getLotteryWinners' },
     ],
-    query: { refetchInterval: 8000, enabled: !!resolvedAddress },
+    query: { refetchInterval: 30000, enabled: !!resolvedAddress },
   })
 
   // Static info from chain — used as fallback when backend hasn't indexed yet (only for full-address navigation)
