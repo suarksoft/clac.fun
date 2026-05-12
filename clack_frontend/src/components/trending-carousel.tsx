@@ -5,16 +5,16 @@ import { useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { TokenCard } from '@/components/token-card'
 import { useQuery } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api/client'
-import { toUiToken } from '@/lib/api/mappers'
+import { apiClientV2 } from '@/lib/api/client-v2'
+import { toUiTokenFromV2 } from '@/lib/api/mappers-v2'
 
 export function TrendingCarousel() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const { data: trendingTokens = [] } = useQuery({
-    queryKey: ['trending-tokens'],
+    queryKey: ['trending-tokens-v2'],
     queryFn: async () => {
-      const response = await apiClient.getTrendingTokens()
-      return response.map(toUiToken)
+      const response = await apiClientV2.getTokens('hot', 20)
+      return response.map(toUiTokenFromV2)
     },
     refetchInterval: 10000,
   })

@@ -2,16 +2,16 @@
 
 import { TokenImage } from '@/components/token-image'
 import { useQuery } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api/client'
-import { toUiTrade } from '@/lib/api/mappers'
+import { apiClientV2 } from '@/lib/api/client-v2'
+import { toUiRecentTradeV2 } from '@/lib/api/mappers-v2'
 import { formatAddress } from '@/lib/format'
 
 export function WinnersFeed() {
   const { data: winners = [] } = useQuery({
-    queryKey: ['winners'],
+    queryKey: ['winners-v2'],
     queryFn: async () => {
-      const response = await apiClient.getWinners()
-      return response.map(toUiTrade).slice(0, 10)
+      const response = await apiClientV2.getRecentTrades(20)
+      return response.map(toUiRecentTradeV2).slice(0, 20)
     },
     refetchInterval: 10000,
   })

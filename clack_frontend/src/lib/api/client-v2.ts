@@ -1,5 +1,5 @@
 import { io } from 'socket.io-client'
-import type { BackendTokenV2, BackendTradeV2, BackendHolderV2, BackendLotteryWinV2, BackendClaimV2 } from './types-v2'
+import type { BackendTokenV2, BackendTradeV2, BackendHolderV2, BackendLotteryWinV2, BackendClaimV2, BackendRecentTradeV2 } from './types-v2'
 import { publicEnv } from '@/lib/env'
 
 const BACKEND_URL = publicEnv.NEXT_PUBLIC_BACKEND_URL
@@ -34,6 +34,9 @@ export const apiClientV2 = {
 
   getClaims: (address: string) =>
     fetchJson<BackendClaimV2[]>(`/api/v2/tokens/${address}/claims`),
+
+  getRecentTrades: (limit = 20) =>
+    fetchJson<BackendRecentTradeV2[]>(`/api/v2/trades/recent?limit=${limit}`),
 
   updateTokenSocials: (
     address: string,

@@ -69,9 +69,14 @@ export interface BackendLotteryWinV2 {
   id: number
   tokenAddress: string
   winner: string
-  shareAmount: string
+  amount: string
   txHash: string
   timestamp: string
+}
+
+/** TradeV2 with embedded token info (returned by /v2/trades/recent) */
+export interface BackendRecentTradeV2 extends BackendTradeV2 {
+  token: { symbol: string; imageURI: string; name: string }
 }
 
 /** Mirrors Prisma ClaimV2 model */

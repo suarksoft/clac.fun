@@ -8,8 +8,8 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { getDeathClockState } from '@/lib/death-clock'
 import { useQuery } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api/client'
-import { toUiToken } from '@/lib/api/mappers'
+import { apiClientV2 } from '@/lib/api/client-v2'
+import { toUiTokenFromV2 } from '@/lib/api/mappers-v2'
 import { Skeleton } from '@/components/ui/skeleton'
 
 type FilterOption = 'live' | 'dying' | 'hot' | 'new' | 'clacd' | 'claiming'
@@ -23,8 +23,8 @@ export function TokenGrid() {
     queryFn: async () => {
       const backendFilter =
         activeFilter === 'clacd' ? 'dead' : activeFilter === 'claiming' ? 'live' : activeFilter
-      const response = await apiClient.getTokens(backendFilter)
-      return response.map(toUiToken)
+      const response = await apiClientV2.getTokens(backendFilter, 100)
+      return response.map(toUiTokenFromV2)
     },
     refetchInterval: 10000,
   })

@@ -362,16 +362,19 @@ export class BlockchainV2Service implements OnModuleInit {
       },
     });
 
-    // Record lottery wins (3 entries)
+    // Record lottery wins — amount = each winner's share (pool / actual winner count)
     const txHash = this.getTxHash(event) ?? '';
-    for (const winner of winnersArr) {
-      if (winner === '0x0000000000000000000000000000000000000000') continue;
+    const realWinners = winnersArr.filter(w => w !== '0x0000000000000000000000000000000000000000');
+    const perWinner = realWinners.length > 0
+      ? (BigInt(lotteryPool.toString()) / BigInt(realWinners.length)).toString()
+      : '0';
+    for (const winner of realWinners) {
       await this.prisma.lotteryWinV2
         .create({
           data: {
             tokenAddress,
             winner,
-            amount: lotteryPool.toString(),
+            amount: perWinner,
             txHash,
           },
         })

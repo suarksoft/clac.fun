@@ -250,6 +250,8 @@ export function TradePanelV2({
     if (isWrongChain) { switchChain({ chainId: monadTestnet.id }); return }
     if (!parsedAmount) { setErrorText('Please enter a valid amount.'); return }
     if (activeTab === 'buy') {
+      const monIn = Number(formatEther(parsedAmount))
+      if (monIn < 0.01) { setErrorText('Minimum buy is 0.01 MON.'); return }
       if (atWhaleLimit) { setErrorText('Whale limit reached. Max 10% of supply.'); return }
       if (wouldExceedWhaleLimit) {
         setErrorText(`Exceeds whale limit. Max ${remainingCapacity.toLocaleString('en-US', { maximumFractionDigits: 0 })} more ${tokenSymbol}.`)

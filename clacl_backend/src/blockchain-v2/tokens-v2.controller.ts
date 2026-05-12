@@ -1,4 +1,4 @@
-import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Patch, Query } from '@nestjs/common';
 import { TokensV2Service } from './tokens-v2.service';
 
 @Controller('v2/tokens')
@@ -40,5 +40,13 @@ export class TokensV2Controller {
   @Get(':address/claims')
   claims(@Param('address') address: string) {
     return this.service.claims(address);
+  }
+
+  @Patch(':address/socials')
+  updateSocials(
+    @Param('address') address: string,
+    @Body() body: { website?: string; twitter?: string; telegram?: string; description?: string },
+  ) {
+    return this.service.updateSocials(address, body);
   }
 }

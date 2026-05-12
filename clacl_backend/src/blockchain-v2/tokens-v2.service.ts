@@ -74,4 +74,28 @@ export class TokensV2Service {
       orderBy: { timestamp: 'desc' },
     });
   }
+
+  async recentTrades(limit = 20) {
+    return this.prisma.tradeV2.findMany({
+      orderBy: { timestamp: 'desc' },
+      take: limit,
+      include: { token: { select: { symbol: true, imageURI: true, name: true } } },
+    });
+  }
+
+  async updateSocials(
+    address: string,
+    data: { website?: string; twitter?: string; telegram?: string; description?: string },
+  ) {
+    const lower = address.toLowerCase();
+    return this.prisma.tokenV2.update({
+      where: { address: lower },
+      data: {
+        website: data.website ?? undefined,
+        twitter: data.twitter ?? undefined,
+        telegram: data.telegram ?? undefined,
+        description: data.description ?? undefined,
+      },
+    });
+  }
 }

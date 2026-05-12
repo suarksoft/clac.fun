@@ -319,39 +319,45 @@ export default function AdminPage() {
         setCreationFeeWei(BigInt(0))
       }
 
-      // Step 2: create token
-      setStatusText('2/3: token olusturuluyor...')
-      const createHash = await writeContractAsync({
-        address: CLAC_FACTORY_V2_ADDRESS,
-        abi: CLAC_FACTORY_V2_ABI,
-        functionName: 'createToken',
-        args: [name.trim(), symbol.trim().toUpperCase(), imageUrl.trim(), DURATION_SECONDS[duration], BigInt(0)],
-        value: BigInt(0),
-      })
-      const receipt = await publicClient!.waitForTransactionReceipt({ hash: createHash })
-
       let createdTokenAddress: string | null = null
-      for (const log of receipt.logs) {
-        try {
-          const decoded = decodeEventLog({ abi: CLAC_FACTORY_V2_ABI, data: log.data, topics: log.topics })
-          if (decoded.eventName === 'TokenCreated') {
-            createdTokenAddress = (decoded.args as { token: string }).token
-            break
-          }
-        } catch { /* ignore */ }
-      }
-
-      // Step 3: restore fee
-      if (restoreFeeAfterCreate && feeLowered && previousFee > BigInt(0)) {
-        setStatusText('3/3: eski creationFee geri yukleniyor...')
-        const restoreHash = await writeContractAsync({
+      try {
+        // Step 2: create token
+        setStatusText('2/3: token olusturuluyor...')
+        const createHash = await writeContractAsync({
           address: CLAC_FACTORY_V2_ADDRESS,
           abi: CLAC_FACTORY_V2_ABI,
-          functionName: 'setCreationFee',
-          args: [previousFee],
+          functionName: 'createToken',
+          args: [name.trim(), symbol.trim().toUpperCase(), imageUrl.trim(), DURATION_SECONDS[duration], BigInt(0)],
+          value: BigInt(0),
         })
-        await waitForTx(restoreHash)
-        setCreationFeeWei(previousFee)
+        const receipt = await publicClient!.waitForTransactionReceipt({ hash: createHash })
+
+        for (const log of receipt.logs) {
+          try {
+            const decoded = decodeEventLog({ abi: CLAC_FACTORY_V2_ABI, data: log.data, topics: log.topics })
+            if (decoded.eventName === 'TokenCreated') {
+              createdTokenAddress = (decoded.args as { token: string }).token
+              break
+            }
+          } catch { /* ignore */ }
+        }
+      } finally {
+        // Step 3: restore fee regardless of create success/failure
+        if (restoreFeeAfterCreate && feeLowered && previousFee > BigInt(0)) {
+          setStatusText('3/3: eski creationFee geri yukleniyor...')
+          try {
+            const restoreHash = await writeContractAsync({
+              address: CLAC_FACTORY_V2_ADDRESS,
+              abi: CLAC_FACTORY_V2_ABI,
+              functionName: 'setCreationFee',
+              args: [previousFee],
+            })
+            await waitForTx(restoreHash)
+            setCreationFeeWei(previousFee)
+          } catch (restoreErr) {
+            setErrorText(`Fee geri yuklenemedi: ${restoreErr instanceof Error ? restoreErr.message : 'Bilinmeyen hata'}`)
+          }
+        }
       }
 
       // Save socials best-effort

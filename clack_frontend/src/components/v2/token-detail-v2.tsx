@@ -131,15 +131,16 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
   const displayPrice = chainPrice ?? activeToken?.price ?? 0
 
   // Auto-retry chain reads when token isn't found yet (e.g. fresh creation, slow RPC)
+  const refetchToken = tokenQuery.refetch
   useEffect(() => {
     if (activeToken || chainStaticLoading || retryCount >= MAX_RETRIES) return
     const id = setTimeout(() => {
       setRetryCount(r => r + 1)
       void refetchChainStatic()
-      void tokenQuery.refetch()
+      void refetchToken()
     }, 4000)
     return () => clearTimeout(id)
-  }, [activeToken, chainStaticLoading, retryCount, refetchChainStatic, tokenQuery])
+  }, [activeToken, chainStaticLoading, retryCount, refetchChainStatic, refetchToken])
 
   useEffect(() => {
     if (tradesQuery.data && activeToken) {

@@ -3,10 +3,11 @@ import { BlockchainV2Service } from './blockchain-v2.service';
 import { TokensV2Gateway } from './tokens-v2.gateway';
 import { TokensV2Service } from './tokens-v2.service';
 import { TokensV2Controller } from './tokens-v2.controller';
+import { TradesV2Controller } from './trades-v2.controller';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Module({
-  controllers: [TokensV2Controller],
+  controllers: [TokensV2Controller, TradesV2Controller],
   providers: [
     BlockchainV2Service,
     TokensV2Gateway,
