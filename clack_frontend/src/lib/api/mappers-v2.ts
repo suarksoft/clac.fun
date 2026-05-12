@@ -77,7 +77,7 @@ export function toUiTokenFromV2(token: BackendTokenV2): Token {
 
   return {
     id: token.address,
-    slug: token.slug ?? undefined,
+    slug: undefined, // always use full address in URLs
     name: token.name,
     symbol: token.symbol,
     image: resolveTokenImageUrl(token.imageURI),
