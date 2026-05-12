@@ -54,9 +54,11 @@ export function TokenDetailV2({ idOrSlug }: TokenDetailV2Props) {
   })
   const token = tokenQuery.data ? toUiTokenV2(tokenQuery.data) : null
 
-  // Resolved on-chain address: from backend response OR from idOrSlug if it's already a full address
+  // Resolved on-chain address: from backend response OR from idOrSlug if it's already a full address.
+  // Always lowercased to avoid viem EIP-55 checksum validation errors on mixed-case input.
   const isFullAddress = /^0x[a-fA-F0-9]{40}$/.test(idOrSlug)
-  const resolvedAddress = (tokenQuery.data?.address ?? (isFullAddress ? idOrSlug : null)) as `0x${string}` | null
+  const rawResolved = tokenQuery.data?.address ?? (isFullAddress ? idOrSlug : null)
+  const resolvedAddress = (rawResolved ? rawResolved.toLowerCase() : null) as `0x${string}` | null
   const chainAddr = resolvedAddress ?? ZERO_ADDR
 
   const tradesQuery = useQuery({
