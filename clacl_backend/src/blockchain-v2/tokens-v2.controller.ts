@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
 import { TokensV2Service } from './tokens-v2.service';
 
 @Controller('v2/tokens')
@@ -15,8 +15,10 @@ export class TokensV2Controller {
   }
 
   @Get(':idOrSlug')
-  get(@Param('idOrSlug') idOrSlug: string) {
-    return this.service.byAddressOrSlug(idOrSlug);
+  async get(@Param('idOrSlug') idOrSlug: string) {
+    const token = await this.service.byAddressOrSlug(idOrSlug);
+    if (!token) throw new NotFoundException(`Token not found: ${idOrSlug}`);
+    return token;
   }
 
   @Get(':address/holders')

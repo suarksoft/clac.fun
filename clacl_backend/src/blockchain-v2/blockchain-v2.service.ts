@@ -350,16 +350,6 @@ export class BlockchainV2Service implements OnModuleInit {
     const winnersArr = Array.from(winners as any[]).map((w) =>
       String(w).toLowerCase(),
     );
-    // Read totalSupplySnapshot + lotteryShare from chain
-    const tokenContract = new ethers.Contract(
-      tokenAddress,
-      CLAC_TOKEN_V2_ABI,
-      this.provider!,
-    );
-    const [totalSupplySnapshot, lotteryShare] = await Promise.all([
-      tokenContract.totalSupplySnapshot(),
-      tokenContract.lotteryShare(),
-    ]);
 
     await this.prisma.tokenV2.update({
       where: { address: tokenAddress },
@@ -368,8 +358,6 @@ export class BlockchainV2Service implements OnModuleInit {
         deathFinalizedAt: block?.timestamp ?? Math.floor(Date.now() / 1000),
         proRataPool: proRataPool.toString(),
         lotteryPool: lotteryPool.toString(),
-        lotteryShare: lotteryShare.toString(),
-        totalSupplySnapshot: totalSupplySnapshot.toString(),
         lotteryWinners: winnersArr as any,
       },
     });
@@ -383,7 +371,7 @@ export class BlockchainV2Service implements OnModuleInit {
           data: {
             tokenAddress,
             winner,
-            amount: lotteryShare.toString(),
+            amount: lotteryPool.toString(),
             txHash,
           },
         })

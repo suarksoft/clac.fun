@@ -227,7 +227,9 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
   }), [liveTrades])
 
   // ── Loading / error guards ──────────────────────────────────────────────
-  if (!activeToken && (tokenQuery.isLoading || chainStaticLoading)) {
+  // Only block on chainStaticLoading — backend can load in the background.
+  // If chain data is ready, render immediately (even if backend is still loading).
+  if (!activeToken && chainStaticLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header /><LiveTicker />
