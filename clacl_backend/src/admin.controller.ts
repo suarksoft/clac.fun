@@ -71,4 +71,53 @@ export class AdminController {
 
     return { ok: true, deletedTokenId: id };
   }
+
+  // ── V2 admin endpoints ──────────────────────────────────────────────────
+
+  @Get('v2/tokens')
+  async getV2Tokens(@Query('limit') limitParam?: string) {
+    const parsed = Number(limitParam ?? 100);
+    const limit = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 500) : 100;
+    return this.prisma.tokenV2.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        address: true,
+        name: true,
+        symbol: true,
+        imageURI: true,
+        deathFinalized: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  @Delete('v2/tokens/:address')
+  async deleteV2Token(@Param('address') address: string) {
+    const lower = address.toLowerCase();
+    if (!/^0x[0-9a-f]{40}$/.test(lower)) throw new NotFoundException('Invalid address');
+    const token = await this.prisma.tokenV2.findUnique({
+      where: { address: lower },
+      select: { address: true, imageURI: true },
+    });
+    if (!token) throw new NotFoundException('Token not found');
+
+    await this.prisma.$transaction([
+      this.prisma.tradeV2.deleteMany({ where: { tokenAddress: lower } }),
+      this.prisma.holderV2.deleteMany({ where: { tokenAddress: lower } }),
+      this.prisma.lotteryWinV2.deleteMany({ where: { tokenAddress: lower } }),
+      this.prisma.claimV2.deleteMany({ where: { tokenAddress: lower } }),
+      this.prisma.tokenV2.delete({ where: { address: lower } }),
+    ]);
+
+    const imageURI = (token.imageURI ?? '').trim();
+    if (imageURI.includes('/uploads/')) {
+      const filename = basename(imageURI);
+      if (filename) {
+        try { await unlink(`uploads/${filename}`); } catch { /* best effort */ }
+      }
+    }
+
+    return { ok: true, deletedAddress: lower };
+  }
 }

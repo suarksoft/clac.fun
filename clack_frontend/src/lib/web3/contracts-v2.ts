@@ -18,6 +18,11 @@ export const CLAC_FACTORY_V2_ABI = parseAbi([
   'function defaultK() view returns (uint256)',
   'function MAX_INITIAL_BUY_BPS() view returns (uint256)',
   'function owner() view returns (address)',
+  'function setCreationFee(uint256 _fee)',
+  'function setPublicCreation(bool _public)',
+  'function setDefaultK(uint256 _k)',
+  'function setTreasury(address _treasury)',
+  'function transferOwnership(address newOwner)',
 ])
 
 export const CLAC_TOKEN_V2_ABI = parseAbi([
