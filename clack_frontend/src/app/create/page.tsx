@@ -193,12 +193,13 @@ export default function CreateTokenPage() {
           body: JSON.stringify(socials),
         }).catch(() => { /* ignore */ })
       }
-    }
 
-    const timer = setTimeout(() => {
-      router.push(createdTokenAddress ? `/token/${createdTokenAddress}` : '/')
-    }, 2000)
-    return () => clearTimeout(timer)
+      const timer = setTimeout(() => {
+        router.push(`/token/${createdTokenAddress}`)
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+    // No address found in logs — tx went to wrong factory or ABI mismatch; stay on page so user can see the tx hash
   }, [isSuccess, receipt, router, tokenDescription, tokenWebsite, tokenTwitter, tokenTelegram])
 
   // Error toasts
@@ -706,13 +707,29 @@ export default function CreateTokenPage() {
                     <div className="mt-4 rounded-xl border border-green-500/20 bg-green-500/10 p-5 text-center">
                       <div className="mb-2 text-4xl">🎉</div>
                       <p className="text-lg font-bold text-green-400">Your token is live!</p>
-                      <p className="mt-1 text-sm text-gray-400">Death clock is ticking...</p>
-                      {newTokenAddress && (
-                        <div className="mt-2">
-                          <Link className="text-sm text-green-300 underline hover:text-green-200" href={`/token/${newTokenAddress}`}>
-                            View your token →
-                          </Link>
-                        </div>
+                      {newTokenAddress ? (
+                        <>
+                          <p className="mt-1 text-sm text-gray-400">Death clock is ticking...</p>
+                          <div className="mt-2">
+                            <Link className="text-sm text-green-300 underline hover:text-green-200" href={`/token/${newTokenAddress}`}>
+                              View your token →
+                            </Link>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="mt-1 text-sm text-gray-400">Transaction confirmed. Check explorer to find your token address.</p>
+                          {hash && (
+                            <a
+                              href={`https://testnet.monadexplorer.com/tx/${hash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-2 block text-xs text-green-400 underline hover:text-green-300"
+                            >
+                              View transaction →
+                            </a>
+                          )}
+                        </>
                       )}
                     </div>
                   )}

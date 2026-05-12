@@ -36,8 +36,11 @@ interface TokenDetailV2Props {
 export function TokenDetailV2({ address }: TokenDetailV2Props) {
   const [liveTrades, setLiveTrades] = useState<Trade[]>([])
   const [mounted, setMounted] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
+  const MAX_RETRIES = 8
 
   useEffect(() => { setMounted(true) }, [])
+  useEffect(() => { setRetryCount(0) }, [address])
 
   const { address: walletAddress, isConnected } = useAccount()
 
@@ -69,7 +72,7 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
   })
 
   // Static info from chain — always fetched, used as fallback when backend hasn't indexed yet
-  const { data: chainStatic, isLoading: chainStaticLoading } = useReadContracts({
+  const { data: chainStatic, isLoading: chainStaticLoading, refetch: refetchChainStatic } = useReadContracts({
     contracts: [
       { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'name' },
       { address, abi: CLAC_TOKEN_V2_ABI, functionName: 'symbol' },
@@ -126,6 +129,17 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
 
   const activeToken = token ?? chainFallbackToken
   const displayPrice = chainPrice ?? activeToken?.price ?? 0
+
+  // Auto-retry chain reads when token isn't found yet (e.g. fresh creation, slow RPC)
+  useEffect(() => {
+    if (activeToken || chainStaticLoading || retryCount >= MAX_RETRIES) return
+    const id = setTimeout(() => {
+      setRetryCount(r => r + 1)
+      void refetchChainStatic()
+      void tokenQuery.refetch()
+    }, 4000)
+    return () => clearTimeout(id)
+  }, [activeToken, chainStaticLoading, retryCount, refetchChainStatic, tokenQuery])
 
   useEffect(() => {
     if (tradesQuery.data && activeToken) {
@@ -227,34 +241,46 @@ export function TokenDetailV2({ address }: TokenDetailV2Props) {
   }), [liveTrades])
 
   // ── Loading / error guards ──────────────────────────────────────────────
-  // Only block on chainStaticLoading — backend can load in the background.
-  // If chain data is ready, render immediately (even if backend is still loading).
-  if (!activeToken && chainStaticLoading) {
-    return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Header /><LiveTicker />
-        <main className="flex-1 px-4 py-6">
-          <div className="mx-auto max-w-[1680px] space-y-4">
-            <Skeleton className="h-36 w-full rounded-xl" />
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-              <Skeleton className="h-[520px] w-full rounded-xl" />
-              <div className="space-y-4">
-                <Skeleton className="h-[320px] w-full rounded-xl" />
-                <Skeleton className="h-[200px] w-full rounded-xl" />
-              </div>
+  const skeletonUi = (
+    <div className="flex min-h-screen flex-col bg-background">
+      <Header /><LiveTicker />
+      <main className="flex-1 px-4 py-6">
+        <div className="mx-auto max-w-[1680px] space-y-4">
+          <Skeleton className="h-36 w-full rounded-xl" />
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+            <Skeleton className="h-[520px] w-full rounded-xl" />
+            <div className="space-y-4">
+              <Skeleton className="h-[320px] w-full rounded-xl" />
+              <Skeleton className="h-[200px] w-full rounded-xl" />
             </div>
           </div>
-        </main>
-      </div>
-    )
+        </div>
+      </main>
+    </div>
+  )
+
+  if (!activeToken && (chainStaticLoading || retryCount < MAX_RETRIES)) {
+    return skeletonUi
   }
 
   if (!activeToken) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Header /><LiveTicker />
-        <main className="flex flex-1 items-center justify-center text-muted-foreground">
-          Token not found or still syncing — try again in a moment.
+        <main className="flex flex-1 flex-col items-center justify-center gap-4 text-muted-foreground">
+          <p className="text-lg font-semibold text-foreground">Token not found</p>
+          <p className="text-sm">
+            No token at <span className="font-mono text-xs">{address.slice(0, 8)}...{address.slice(-6)}</span>
+          </p>
+          <button
+            onClick={() => { setRetryCount(0) }}
+            className="mt-2 rounded-xl border border-border bg-secondary px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary/70"
+          >
+            Retry
+          </button>
+          <Link href="/" className="text-xs text-muted-foreground underline hover:text-foreground">
+            ← Back to home
+          </Link>
         </main>
       </div>
     )
