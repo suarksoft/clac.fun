@@ -202,18 +202,27 @@ export default function CreateTokenPage() {
     // No address found in logs — tx went to wrong factory or ABI mismatch; stay on page so user can see the tx hash
   }, [isSuccess, receipt, router, tokenDescription, tokenWebsite, tokenTwitter, tokenTelegram])
 
-  // Error toasts
+  // Error toasts + structured logging
   useEffect(() => {
     if (!error) return
+    console.error('[create] writeContract error', error)
     const msg = error.message.toLowerCase()
     if (msg.includes('insufficient funds')) {
       toast.error(`Insufficient MON balance. You need at least ${creationFeeMon} MON to create a token.`)
     } else if (msg.includes('user rejected') || msg.includes('user denied') || msg.includes('rejected the request')) {
       toast.error('Transaction cancelled.')
-    } else if (msg.includes('creation not public yet')) {
-      toast.error('Token creation is currently restricted to admins.')
+    } else if (msg.includes('creation not public')) {
+      toast.error('Token creation is currently restricted to admins. Enable Public Creation in admin panel.')
+    } else if (msg.includes('insufficient creation fee')) {
+      toast.error(`Creation fee mismatch. Required: ${creationFeeMon} MON.`)
+    } else if (msg.includes('invalid duration')) {
+      toast.error('Invalid duration selected.')
+    } else if (msg.includes('slippage exceeded')) {
+      toast.error('Initial buy slippage exceeded. Try increasing slippage tolerance or reducing initial buy.')
+    } else if (msg.includes('initial buy exceeds')) {
+      toast.error('Initial buy too large (max 79.31% of supply).')
     } else {
-      toast.error('Transaction failed. Please try again.')
+      toast.error(`Transaction failed: ${error.message.slice(0, 120)}`)
     }
   }, [error, creationFeeMon])
 
@@ -291,14 +300,39 @@ export default function CreateTokenPage() {
       setIsUploading(false)
     }
 
-    const minInitialTokens =
-      initialBuyMon > 0 && estimatedTokens > 0
-        ? BigInt(Math.floor(estimatedTokens * 0.95 * 1e18))
-        : BigInt(0)
+    // BigInt-safe slippage: parseEther handles the string conversion to wei,
+    // avoiding JS Number precision loss for large estimates (e.g. 100M tokens).
+    let minInitialTokens: bigint
+    if (initialBuyMon > 0 && estimatedTokens > 0) {
+      try {
+        minInitialTokens = parseEther((estimatedTokens * 0.95).toFixed(18))
+      } catch (err) {
+        console.error('[create] parseEther failed for estimatedTokens', estimatedTokens, err)
+        minInitialTokens = BigInt(0)
+      }
+    } else {
+      minInitialTokens = BigInt(0)
+    }
 
-    const totalValue = creationFeeRaw
-      ? creationFeeRaw + (initialBuyMon > 0 ? parseEther(String(initialBuyMon)) : BigInt(0))
-      : parseEther('0')
+    let totalValue: bigint
+    try {
+      const initialBuyWei = initialBuyMon > 0 ? parseEther(String(initialBuyMon)) : BigInt(0)
+      totalValue = (creationFeeRaw ?? BigInt(0)) + initialBuyWei
+    } catch (err) {
+      console.error('[create] failed to compute totalValue', err)
+      toast.error('Invalid amount. Check creation fee and initial buy.')
+      return
+    }
+
+    console.log('[create] submit', {
+      name: tokenName.trim(),
+      symbol: tokenSymbol.trim().toUpperCase(),
+      duration: selectedDuration,
+      creationFee: creationFeeRaw?.toString(),
+      initialBuyWei: (initialBuyMon > 0 ? parseEther(String(initialBuyMon)) : BigInt(0)).toString(),
+      minInitialTokens: minInitialTokens.toString(),
+      totalValue: totalValue.toString(),
+    })
 
     writeContract({
       address: CLAC_FACTORY_V2_ADDRESS,

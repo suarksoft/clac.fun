@@ -7,10 +7,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma/prisma.service';
 import { BlockchainV2Module } from './blockchain-v2/blockchain-v2.module';
-import { TokensModule } from './tokens/tokens.module';
-import { TradesModule } from './trades/trades.module';
-import { LeaderboardModule } from './leaderboard/leaderboard.module';
-import { PortfolioModule } from './portfolio/portfolio.module';
 import { AdminController } from './admin.controller';
 import { HealthController } from './health.controller';
 import { AdminPasswordGuard } from './common/guards/admin-password.guard';
@@ -27,10 +23,6 @@ import { UploadModule } from './upload/upload.module';
       },
     ]),
     BlockchainV2Module,
-    TokensModule,
-    TradesModule,
-    LeaderboardModule,
-    PortfolioModule,
     UploadModule,
   ],
   controllers: [AppController, AdminController, HealthController],

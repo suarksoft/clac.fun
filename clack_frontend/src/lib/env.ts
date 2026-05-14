@@ -5,14 +5,8 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_MONAD_WS: z.string().url(),
   NEXT_PUBLIC_BACKEND_URL: z.string().url(),
   NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: z.string().regex(/^[a-f0-9]{32}$/i),
-  NEXT_PUBLIC_CLAC_FACTORY_ADDRESS: z
-    .string()
-    .regex(/^0x[a-fA-F0-9]{40}$/),
   NEXT_PUBLIC_SITE_URL: z.string().url(),
-  NEXT_PUBLIC_FACTORY_ADDRESS: z
-    .string()
-    .regex(/^0x[a-fA-F0-9]{40}$/)
-    .optional(),
+  NEXT_PUBLIC_FACTORY_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
 })
 
 const parsed = publicEnvSchema.safeParse({
@@ -20,7 +14,6 @@ const parsed = publicEnvSchema.safeParse({
   NEXT_PUBLIC_MONAD_WS: process.env.NEXT_PUBLIC_MONAD_WS,
   NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
   NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
-  NEXT_PUBLIC_CLAC_FACTORY_ADDRESS: process.env.NEXT_PUBLIC_CLAC_FACTORY_ADDRESS,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   NEXT_PUBLIC_FACTORY_ADDRESS: process.env.NEXT_PUBLIC_FACTORY_ADDRESS,
 })

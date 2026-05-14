@@ -44,12 +44,14 @@ const connectors = isBrowser
 export const wagmiConfig = createConfig({
   chains: [activeChain],
   connectors,
+  // Increase polling interval to reduce RPC pressure (default is 4000ms)
+  pollingInterval: 30_000,
   transports: {
     [monadTestnet.id]: fallback([
-      http(publicEnv.NEXT_PUBLIC_MONAD_RPC),
-      http('https://monad-testnet.drpc.org'),
+      http(publicEnv.NEXT_PUBLIC_MONAD_RPC, { batch: true }),
+      http('https://monad-testnet.drpc.org', { batch: true }),
     ], { rank: false }),
-    [monadMainnet.id]: http(publicEnv.NEXT_PUBLIC_MONAD_RPC),
+    [monadMainnet.id]: http(publicEnv.NEXT_PUBLIC_MONAD_RPC, { batch: true }),
   },
   ssr: false,
 })

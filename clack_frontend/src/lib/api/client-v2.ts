@@ -4,11 +4,37 @@ import { publicEnv } from '@/lib/env'
 
 const BACKEND_URL = publicEnv.NEXT_PUBLIC_BACKEND_URL
 
+export interface V2Stats {
+  liveCount: number
+  totalTrades: number
+  totalVolume: string
+  clacdCount: number
+}
+
+export interface V2PortfolioHolding {
+  tokenAddress: string
+  tokenName: string
+  tokenSymbol: string
+  imageURI: string
+  balance: string
+  currentPrice: string
+  valueMon: string
+  deathFinalized: boolean
+  createdAt: number
+  duration: number
+  claimableMon: string
+}
+
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(`${BACKEND_URL}${path}`, {
     next: { revalidate: 5 },
   })
-  if (!response.ok) throw new Error(`V2 API request failed for ${path}`)
+  if (!response.ok) {
+    const body = await response.text().catch(() => '')
+    const err = new Error(`V2 API ${response.status} for ${path}${body ? ` — ${body.slice(0, 200)}` : ''}`)
+    console.error('[apiClientV2]', err.message)
+    throw err
+  }
   return response.json() as Promise<T>
 }
 
@@ -17,7 +43,12 @@ async function fetchJsonOrNull<T>(path: string): Promise<T | null> {
     next: { revalidate: 5 },
   })
   if (response.status === 404) return null
-  if (!response.ok) throw new Error(`V2 API request failed for ${path}`)
+  if (!response.ok) {
+    const body = await response.text().catch(() => '')
+    const err = new Error(`V2 API ${response.status} for ${path}${body ? ` — ${body.slice(0, 200)}` : ''}`)
+    console.error('[apiClientV2]', err.message)
+    throw err
+  }
   return response.json() as Promise<T>
 }
 
@@ -46,6 +77,14 @@ export const apiClientV2 = {
 
   getRecentTrades: (limit = 20) =>
     fetchJson<BackendRecentTradeV2[]>(`/api/v2/trades/recent?limit=${limit}`),
+
+  getLeaderboard: (limit = 50) =>
+    fetchJson<BackendTokenV2[]>(`/api/v2/leaderboard?limit=${limit}`),
+
+  getPortfolio: (address: string) =>
+    fetchJson<V2PortfolioHolding[]>(`/api/v2/portfolio/${address}`),
+
+  getStats: () => fetchJson<V2Stats>(`/api/v2/stats`),
 
   updateTokenSocials: (
     address: string,

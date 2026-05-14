@@ -1,8 +1,9 @@
 'use client'
 
 import { use } from 'react'
+import Link from 'next/link'
+import { Header } from '@/components/header'
 import { TokenDetailV2 } from '@/components/v2/token-detail-v2'
-import { TokenDetailV1 } from '@/components/token-detail-v1'
 
 export default function TokenDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -12,5 +13,18 @@ export default function TokenDetailPage({ params }: { params: Promise<{ id: stri
     return <TokenDetailV2 idOrSlug={id} />
   }
 
-  return <TokenDetailV1 id={id} />
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      <Header />
+      <main className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+        <p className="text-xl font-semibold text-foreground">Token not found</p>
+        <p className="max-w-md text-sm text-muted-foreground">
+          Clac.fun artık yalnızca V2 tokenlarını gösteriyor. Bu link eski sürüme ait olabilir.
+        </p>
+        <Link href="/" className="mt-3 rounded-xl border border-border bg-secondary px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary/70">
+          ← Ana sayfaya dön
+        </Link>
+      </main>
+    </div>
+  )
 }

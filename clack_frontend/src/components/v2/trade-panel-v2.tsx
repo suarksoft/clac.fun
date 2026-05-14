@@ -79,7 +79,7 @@ export function TradePanelV2({
   const { openConnectModal } = useConnectModal()
   const publicClient = usePublicClient()
   const { data: hash, isPending, writeContractAsync } = useWriteContract()
-  const { data: balanceData } = useBalance({ address })
+  const { data: balanceData } = useBalance({ address, query: { refetchInterval: 30_000 } })
 
   const walletMonBalance = Number(balanceData?.formatted || 0)
   const isWrongChain = isConnected && chainId !== monadTestnet.id
@@ -140,23 +140,25 @@ export function TradePanelV2({
     setTxError(null)
   }, [activeTab])
 
-  // Sell quote
+  // Sell quote — debounced 500ms to avoid RPC spam on every keystroke
   useEffect(() => {
     if (!parsedAmount || !publicClient || isDead || activeTab !== 'sell') {
       setSellQuoteRaw(null)
       return
     }
     let cancelled = false
-    publicClient
-      .readContract({
-        address: tokenAddress,
-        abi: CLAC_TOKEN_V2_ABI,
-        functionName: 'getSellQuote',
-        args: [parsedAmount],
-      })
-      .then((r) => { if (!cancelled) setSellQuoteRaw(r as bigint) })
-      .catch(() => { if (!cancelled) setSellQuoteRaw(null) })
-    return () => { cancelled = true }
+    const timer = setTimeout(() => {
+      publicClient
+        .readContract({
+          address: tokenAddress,
+          abi: CLAC_TOKEN_V2_ABI,
+          functionName: 'getSellQuote',
+          args: [parsedAmount],
+        })
+        .then((r) => { if (!cancelled) setSellQuoteRaw(r as bigint) })
+        .catch(() => { if (!cancelled) setSellQuoteRaw(null) })
+    }, 500)
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [activeTab, parsedAmount, publicClient, tokenAddress, isDead])
 
   // Receipt polling
@@ -216,17 +218,21 @@ export function TradePanelV2({
 
   const parseTxError = (error: unknown): string => {
     const msg = error instanceof Error ? error.message : String(error)
+    console.error('[trade-panel-v2] tx error', { tokenAddress, activeTab, amount, msg })
     if (/user rejected|user denied|rejected the request/i.test(msg)) return 'Transaction rejected.'
     if (/insufficient funds/i.test(msg)) return 'Insufficient MON balance.'
     if (/Min buy/i.test(msg)) return 'Minimum buy is 0.01 MON.'
-    if (/cooldown/i.test(msg)) return 'Buy cooldown active. Wait a moment.'
+    if (/cooldown/i.test(msg)) return 'Buy cooldown active. Wait ~2 blocks before buying again.'
     if (/Max holding/i.test(msg)) return 'Whale limit: max 10% of supply per wallet.'
+    if (/Max holders reached/i.test(msg)) return 'Token reached max holders (2000).'
     if (/Sell closed in last hour/i.test(msg)) return 'Sells are closed in the last hour before death.'
-    if (/Death pending/i.test(msg)) return 'Death is pending — no more sells.'
-    if (/Anti-sniper/i.test(msg)) return 'Anti-sniper limit: reduce your buy amount.'
+    if (/Death pending|Token expired/i.test(msg)) return 'Token is no longer tradeable.'
+    if (/Anti-sniper/i.test(msg)) return 'Anti-sniper limit (first 30s): reduce your buy amount.'
     if (/Slippage exceeded/i.test(msg)) return 'Price moved too much. Increase slippage or try again.'
-    if (/insufficient.*balance|balance.*insufficient/i.test(msg)) return `Insufficient ${tokenSymbol} balance.`
-    return 'Transaction failed. Please try again.'
+    if (/Max supply reached/i.test(msg)) return 'Token supply cap reached.'
+    if (/Zero tokens out/i.test(msg)) return 'Amount too small — increase MON input.'
+    if (/insufficient.*balance|balance.*insufficient|Insufficient balance/i.test(msg)) return `Insufficient ${tokenSymbol} balance.`
+    return `Transaction failed: ${msg.slice(0, 120)}`
   }
 
   const setSellByPercent = (pct: number) => {
@@ -519,6 +525,12 @@ export function TradePanelV2({
           <div className="flex items-start gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-2.5 py-2 text-[11px] text-orange-400">
             <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
             <span>High price impact ({priceImpact.toFixed(1)}%). Consider a smaller amount or increase slippage.</span>
+          </div>
+        )}
+        {isZeroSupply && activeTab === 'buy' && amount && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-400">
+            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+            <span>First buy — slippage protection unavailable (no on-chain estimate). MEV risk: keep amount small.</span>
           </div>
         )}
 

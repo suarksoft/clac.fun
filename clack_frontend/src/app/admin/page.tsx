@@ -62,6 +62,8 @@ export default function AdminPage() {
   const [currentK, setCurrentK] = useState<bigint>(BigInt(0))
   const [desiredK, setDesiredK] = useState('')
   const [ownerAddress, setOwnerAddress] = useState<string>('')
+  const [treasuryInput, setTreasuryInput] = useState('')
+  const [pendingOwnerInput, setPendingOwnerInput] = useState('')
   const [statusText, setStatusText] = useState<string>('')
   const [errorText, setErrorText] = useState<string>('')
   const [isLoadingConfig, setIsLoadingConfig] = useState(true)
@@ -232,6 +234,7 @@ export default function AdminPage() {
       setStatusText('Creation fee guncellendi.')
       toast.success('Creation fee guncellendi.')
     } catch (error) {
+      console.error('[admin] setCreationFee failed', error)
       setErrorText(error instanceof Error ? error.message : 'Fee guncellenemedi.')
       toast.error('Fee guncellenemedi.')
     } finally {
@@ -256,6 +259,7 @@ export default function AdminPage() {
       setStatusText(nextValue ? 'Public creation acildi.' : 'Public creation kapatildi.')
       toast.success('Public creation ayari guncellendi.')
     } catch (error) {
+      console.error('[admin] setPublicCreation failed', error)
       setErrorText(error instanceof Error ? error.message : 'Public creation guncellenemedi.')
       toast.error('Public creation guncellenemedi.')
     } finally {
@@ -281,8 +285,65 @@ export default function AdminPage() {
       setStatusText(`defaultK ${kBigInt.toString()} olarak guncellendi.`)
       toast.success('defaultK guncellendi.')
     } catch (error) {
+      console.error('[admin] setDefaultK failed', error)
       setErrorText(error instanceof Error ? error.message : 'defaultK guncellenemedi.')
       toast.error('defaultK guncellenemedi.')
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  const updateTreasury = async () => {
+    try {
+      await ensureWalletAndChain()
+      const newTreasury = treasuryInput.trim()
+      if (!/^0x[a-fA-F0-9]{40}$/.test(newTreasury)) throw new Error('Treasury adresi gecersiz.')
+      setIsWorking(true)
+      setStatusText('Treasury guncelleniyor...')
+      setErrorText('')
+      const hash = await writeContractAsync({
+        address: CLAC_FACTORY_V2_ADDRESS,
+        abi: CLAC_FACTORY_V2_ABI,
+        functionName: 'setTreasury',
+        args: [newTreasury as `0x${string}`],
+      })
+      await waitForTx(hash)
+      await loadConfig()
+      setStatusText('Treasury guncellendi.')
+      toast.success('Treasury guncellendi.')
+      setTreasuryInput('')
+    } catch (error) {
+      console.error('[admin] setTreasury failed', error)
+      setErrorText(error instanceof Error ? error.message : 'Treasury guncellenemedi.')
+      toast.error('Treasury guncellenemedi.')
+    } finally {
+      setIsWorking(false)
+    }
+  }
+
+  const startTransferOwnership = async () => {
+    try {
+      await ensureWalletAndChain()
+      const newOwner = pendingOwnerInput.trim()
+      if (!/^0x[a-fA-F0-9]{40}$/.test(newOwner)) throw new Error('Yeni owner adresi gecersiz.')
+      if (!window.confirm(`Ownership transferi baslatilacak: ${newOwner}\nYeni owner kendisi acceptOwnership cagirmadan transfer tamamlanmaz. Devam?`)) return
+      setIsWorking(true)
+      setStatusText('Ownership transferi baslatiliyor...')
+      setErrorText('')
+      const hash = await writeContractAsync({
+        address: CLAC_FACTORY_V2_ADDRESS,
+        abi: CLAC_FACTORY_V2_ABI,
+        functionName: 'transferOwnership',
+        args: [newOwner as `0x${string}`],
+      })
+      await waitForTx(hash)
+      setStatusText(`Ownership transferi baslatildi. ${newOwner} kabul etmeli.`)
+      toast.success('Ownership transferi baslatildi (2-step).')
+      setPendingOwnerInput('')
+    } catch (error) {
+      console.error('[admin] transferOwnership failed', error)
+      setErrorText(error instanceof Error ? error.message : 'Ownership transferi basarisiz.')
+      toast.error('Ownership transferi basarisiz.')
     } finally {
       setIsWorking(false)
     }
@@ -473,21 +534,40 @@ export default function AdminPage() {
           {/* Controls */}
           <div className="mb-6 space-y-3 rounded-xl border border-border bg-card p-4">
             <h2 className="text-lg font-semibold">Factory Controls</h2>
-            <div className="flex gap-2">
-              <Input value={desiredFeeMon} onChange={(e) => setDesiredFeeMon(e.target.value)} placeholder="0 MON" />
-              <Button onClick={updateCreationFee} disabled={isWorking || isPending}>Set Fee</Button>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Creation Fee (yeni tokenlar bu kadar MON oder)</p>
+              <div className="flex gap-2">
+                <Input value={desiredFeeMon} onChange={(e) => setDesiredFeeMon(e.target.value)} placeholder="1" />
+                <Button onClick={updateCreationFee} disabled={isWorking || isPending}>Set Fee</Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => togglePublicCreation(true)} disabled={isWorking || isPending}>Public ON</Button>
-              <Button variant="outline" onClick={() => togglePublicCreation(false)} disabled={isWorking || isPending}>Public OFF</Button>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Public Creation (kapaliysa sadece owner token acabilir)</p>
+              <div className="flex gap-2">
+                <Button variant={publicCreation ? 'outline' : 'default'} onClick={() => togglePublicCreation(true)} disabled={isWorking || isPending || publicCreation}>Public ON</Button>
+                <Button variant={publicCreation ? 'default' : 'outline'} onClick={() => togglePublicCreation(false)} disabled={isWorking || isPending || !publicCreation}>Public OFF</Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Input
-                value={desiredK}
-                onChange={(e) => setDesiredK(e.target.value)}
-                placeholder={`Current: ${currentK.toString()}`}
-              />
-              <Button onClick={updateK} disabled={isWorking || isPending}>Set K</Button>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Default K (bonding curve katsayisi; yeni tokenlar icin)</p>
+              <div className="flex gap-2">
+                <Input value={desiredK} onChange={(e) => setDesiredK(e.target.value)} placeholder={`Current: ${currentK.toString()}`} />
+                <Button onClick={updateK} disabled={isWorking || isPending}>Set K</Button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Treasury Adresi (creation fee + death tax buraya gider)</p>
+              <div className="flex gap-2">
+                <Input value={treasuryInput} onChange={(e) => setTreasuryInput(e.target.value)} placeholder="0x..." />
+                <Button onClick={updateTreasury} disabled={isWorking || isPending}>Set Treasury</Button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Ownership transferi (2-step: yeni owner acceptOwnership cagirmali)</p>
+              <div className="flex gap-2">
+                <Input value={pendingOwnerInput} onChange={(e) => setPendingOwnerInput(e.target.value)} placeholder="0x... (yeni owner)" />
+                <Button variant="destructive" onClick={startTransferOwnership} disabled={isWorking || isPending}>Transfer Ownership</Button>
+              </div>
             </div>
           </div>
 

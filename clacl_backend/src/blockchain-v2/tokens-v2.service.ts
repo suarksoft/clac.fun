@@ -83,6 +83,87 @@ export class TokensV2Service {
     });
   }
 
+  async leaderboard(limit = 50) {
+    return this.prisma.tokenV2.findMany({
+      orderBy: { marketCap: 'desc' },
+      take: limit,
+    });
+  }
+
+  async stats() {
+    const now = Math.floor(Date.now() / 1000);
+    const [totalTrades, tokens] = await Promise.all([
+      this.prisma.tradeV2.count(),
+      this.prisma.tokenV2.findMany({
+        select: { deathFinalized: true, createdAt: true, deathTime: true, volume24h: true },
+      }),
+    ]);
+
+    let totalVolume = 0;
+    let liveCount = 0;
+    let clacdCount = 0;
+    for (const t of tokens) {
+      totalVolume += Number(t.volume24h ?? 0);
+      if (t.deathFinalized) clacdCount++;
+      else if (t.deathTime > now) liveCount++;
+    }
+
+    return {
+      totalTrades,
+      totalVolume: totalVolume.toFixed(1),
+      liveCount,
+      clacdCount,
+    };
+  }
+
+  async portfolio(holderAddress: string) {
+    const lower = holderAddress.toLowerCase();
+    const holdings = await this.prisma.holderV2.findMany({
+      where: { address: lower, balance: { not: '0' } },
+      include: {
+        token: {
+          select: {
+            address: true,
+            name: true,
+            symbol: true,
+            imageURI: true,
+            currentPrice: true,
+            createdAt: true,
+            duration: true,
+            deathFinalized: true,
+          },
+        },
+      },
+    });
+
+    return holdings.map((h) => {
+      let valueMon = '0';
+      try {
+        const balance = BigInt(h.balance || '0');
+        const price = BigInt(h.token.currentPrice || '0');
+        // Both in wei; price = MON per token (with 18 decimals). Value = balance * price / 1e18.
+        const value = (balance * price) / BigInt(10) ** BigInt(18);
+        valueMon = value.toString();
+      } catch {
+        // ignore conversion failures, keep "0"
+      }
+
+      return {
+        tokenAddress: h.token.address,
+        tokenName: h.token.name,
+        tokenSymbol: h.token.symbol,
+        imageURI: h.token.imageURI,
+        balance: h.balance,
+        currentPrice: h.token.currentPrice,
+        valueMon,
+        deathFinalized: h.token.deathFinalized,
+        createdAt: h.token.createdAt,
+        duration: h.token.duration,
+        claimableMon: '0',
+      };
+    });
+  }
+
   async updateSocials(
     address: string,
     data: { website?: string; twitter?: string; telegram?: string; description?: string },

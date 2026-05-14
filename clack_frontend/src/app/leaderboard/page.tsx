@@ -9,18 +9,18 @@ import Link from 'next/link'
 import { Trophy, TrendingUp, Users } from 'lucide-react'
 import { getDeathClockColor, getDeathClockState } from '@/lib/death-clock'
 import { useQuery } from '@tanstack/react-query'
-import { apiClient } from '@/lib/api/client'
-import { toUiToken } from '@/lib/api/mappers'
+import { apiClientV2 } from '@/lib/api/client-v2'
+import { toUiTokenFromV2 } from '@/lib/api/mappers-v2'
 
 export default function LeaderboardPage() {
   const [nowSeconds, setNowSeconds] = useState(() => Math.floor(Date.now() / 1000))
   const { data: sortedTokens = [] } = useQuery({
-    queryKey: ['leaderboard'],
+    queryKey: ['v2-leaderboard'],
     queryFn: async () => {
-      const response = await apiClient.getLeaderboard()
-      return response.map(toUiToken)
+      const response = await apiClientV2.getLeaderboard()
+      return response.map(toUiTokenFromV2)
     },
-    refetchInterval: 10000,
+    refetchInterval: 20_000,
   })
 
   useEffect(() => {

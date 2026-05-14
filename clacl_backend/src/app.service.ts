@@ -26,11 +26,12 @@ export class AppService {
   }
 
   async getStats() {
+    // V2-only stats. V1 tables are no longer indexed.
     const now = Math.floor(Date.now() / 1000);
     const [totalTrades, tokens] = await Promise.all([
-      this.prisma.trade.count(),
-      this.prisma.token.findMany({
-        select: { dead: true, createdAt: true, duration: true, volume24h: true },
+      this.prisma.tradeV2.count(),
+      this.prisma.tokenV2.findMany({
+        select: { deathFinalized: true, deathTime: true, volume24h: true },
       }),
     ]);
 
@@ -39,12 +40,9 @@ export class AppService {
     let clacdCount = 0;
 
     for (const t of tokens) {
-      totalVolume += t.volume24h;
-      if (t.dead) {
-        clacdCount++;
-      } else if (t.createdAt + t.duration > now) {
-        liveCount++;
-      }
+      totalVolume += Number(t.volume24h ?? 0);
+      if (t.deathFinalized) clacdCount++;
+      else if (t.deathTime > now) liveCount++;
     }
 
     return {

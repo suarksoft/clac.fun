@@ -93,7 +93,7 @@ export function HeroSection() {
           {/* Sağ: Featured Token */}
           <div className="w-full md:w-72 lg:w-80 flex-shrink-0">
             {featuredToken ? (
-              <Link href={`/token/${featuredToken.slug || featuredToken.id}`} className="block group h-full">
+              <Link href={`/token/${featuredToken.slug || featuredToken.address}`} className="block group h-full">
                 <div className="relative h-full bg-gray-800/40 border border-gray-700/50 rounded-xl overflow-hidden hover:border-violet-500/30 transition-all duration-500">
                   <div className="relative h-40 overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -52,7 +52,7 @@ export function TokenDetailV2({ idOrSlug }: TokenDetailV2Props) {
     queryFn: () => apiClientV2.getToken(idOrSlug),
     // 404 returns null (not an error), so refetchInterval polls until indexer catches up.
     // Disable window-focus refetch to avoid spamming when token is not yet indexed.
-    refetchInterval: (query) => (query.state.data === null ? 5000 : 10000),
+    refetchInterval: (query) => (query.state.data === null ? 6000 : 20_000),
     refetchOnWindowFocus: (query) => query.state.data !== null,
   })
   const token = tokenQuery.data ? toUiTokenV2(tokenQuery.data) : null
@@ -67,7 +67,7 @@ export function TokenDetailV2({ idOrSlug }: TokenDetailV2Props) {
   const tradesQuery = useQuery({
     queryKey: ['v2-trades', idOrSlug],
     queryFn: () => apiClientV2.getTrades(resolvedAddress ?? idOrSlug),
-    refetchInterval: 10000,
+    refetchInterval: 15_000,
   })
 
   // ── On-chain reads ──────────────────────────────────────────────────────
@@ -80,7 +80,7 @@ export function TokenDetailV2({ idOrSlug }: TokenDetailV2Props) {
       { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'getRandomnessFee' },
       { address: chainAddr, abi: CLAC_TOKEN_V2_ABI, functionName: 'getLotteryWinners' },
     ],
-    query: { refetchInterval: 30000, enabled: !!resolvedAddress },
+    query: { refetchInterval: 60_000, enabled: !!resolvedAddress },
   })
 
   // Static info from chain — used as fallback when backend hasn't indexed yet (only for full-address navigation)
@@ -166,7 +166,7 @@ export function TokenDetailV2({ idOrSlug }: TokenDetailV2Props) {
     abi: CLAC_TOKEN_V2_ABI,
     functionName: 'getClaimable',
     args: [walletAddress ?? ZERO_ADDR],
-    query: { enabled: isConnected && Boolean(walletAddress) && deathFinalized && !!resolvedAddress, refetchInterval: 10000 },
+    query: { enabled: isConnected && Boolean(walletAddress) && deathFinalized && !!resolvedAddress, refetchInterval: 30_000 },
   })
   const [proRataClaimable, lotteryClaimable] = claimableData
     ? [Number(formatEther((claimableData as [bigint, bigint])[0])), Number(formatEther((claimableData as [bigint, bigint])[1]))]

@@ -1,83 +1,56 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { apiClient, createSocketClient } from '@/lib/api/client'
-import { toUiTrade, tradeToLiveEvent } from '@/lib/api/mappers'
+import { formatEther } from 'viem'
+import { apiClientV2, createSocketClientV2 } from '@/lib/api/client-v2'
+import { resolveTokenImageUrl, toUiRecentTradeV2, tradeToLiveEventV2 } from '@/lib/api/mappers-v2'
 import type { LiveEvent } from '@/lib/ui-types'
+import type { SocketTradeV2Event } from '@/lib/api/types-v2'
 
-export function useLiveEvents() {
+/**
+ * V2-only live events stream. Seeds from /api/v2/trades/recent, then keeps the
+ * list in sync via the v2 socket gateway.
+ */
+export function useLiveEvents(): LiveEvent[] {
   const [events, setEvents] = useState<LiveEvent[]>([])
 
-  const recentTradesQuery = useQuery({
-    queryKey: ['recent-trades'],
-    queryFn: apiClient.getRecentTrades,
+  const recentQuery = useQuery({
+    queryKey: ['v2-recent-trades'],
+    queryFn: () => apiClientV2.getRecentTrades(20),
     staleTime: 5000,
+    refetchInterval: 30_000,
   })
 
   useEffect(() => {
-    if (!recentTradesQuery.data) return
-    const mapped = recentTradesQuery.data.map(toUiTrade).map(tradeToLiveEvent)
-    if (mapped.length > 0) {
-      setEvents(mapped)
-    }
-  }, [recentTradesQuery.data])
+    if (!recentQuery.data) return
+    const mapped = recentQuery.data.map(toUiRecentTradeV2).map(tradeToLiveEventV2)
+    if (mapped.length > 0) setEvents(mapped)
+  }, [recentQuery.data])
 
   useEffect(() => {
-    const socket = createSocketClient()
-
-    socket.on('trade', (payload) => {
-      const liveEvent = {
-        id: crypto.randomUUID(),
-        type: payload.isBuy ? 'buy' : 'sell',
-        account: payload.trader,
-        amount: Number(payload.monAmount || 0),
-          tokenSymbol: payload.tokenSymbol || 'CLAC',
-        tokenImage: '/tokens/pepe-king.jpg',
-        time: new Date(),
-      } as const
-
-      setEvents((prev) => [liveEvent, ...prev].slice(0, 30))
-    })
-
-    socket.on('tokenClacced', (payload) => {
-      const liveEvent: LiveEvent = {
-        id: crypto.randomUUID(),
-        type: 'clac',
-        account: payload.triggeredBy || 'system',
-        amount: Number(payload.poolRemaining || 0),
-        tokenSymbol: payload.tokenSymbol || 'CLAC',
-        tokenImage: '/tokens/chad-bull.jpg',
-        time: new Date(),
+    const socket = createSocketClientV2()
+    socket.on('trade', (payload: SocketTradeV2Event & { tokenSymbol?: string; tokenImage?: string }) => {
+      try {
+        const event: LiveEvent = {
+          id: crypto.randomUUID(),
+          type: payload.isBuy ? 'buy' : 'sell',
+          account: payload.trader,
+          amount: Number(formatEther(BigInt(payload.monAmount || '0'))),
+          tokenSymbol: payload.tokenSymbol ?? 'CLAC',
+          tokenImage: resolveTokenImageUrl(payload.tokenImage),
+          time: new Date(),
+        }
+        setEvents((prev) => [event, ...prev].slice(0, 30))
+      } catch (err) {
+        console.error('[useLiveEvents] failed to handle socket trade', err)
       }
-
-      setEvents((prev) => [
-        liveEvent,
-        ...prev,
-      ].slice(0, 30))
     })
-
-    socket.on('lotteryWin', (payload) => {
-      const liveEvent: LiveEvent = {
-        id: crypto.randomUUID(),
-        type: 'lottery',
-        account: payload.winner,
-        amount: Number(payload.amount || 0),
-        tokenSymbol: payload.tokenSymbol || 'CLAC',
-        tokenImage: '/tokens/rocket-cat.jpg',
-        time: new Date(),
-      }
-
-      setEvents((prev) => [
-        liveEvent,
-        ...prev,
-      ].slice(0, 30))
+    socket.on('connect_error', (err) => {
+      console.error('[useLiveEvents] socket connect_error', err.message)
     })
-
-    return () => {
-      socket.disconnect()
-    }
+    return () => { socket.disconnect() }
   }, [])
 
-  return useMemo(() => events, [events])
+  return events
 }

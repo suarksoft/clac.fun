@@ -1,7 +1,47 @@
 import { formatEther } from 'viem'
-import type { Token, Trade } from '@/lib/ui-types'
-import type { BackendTokenV2, BackendTradeV2, BackendRecentTradeV2 } from './types-v2'
-import { resolveTokenImageUrl } from './mappers'
+import type { Token, Trade, LiveEvent } from '@/lib/ui-types'
+import type { BackendTokenV2, BackendTradeV2, BackendRecentTradeV2, BackendHolderV2 } from './types-v2'
+import { publicEnv } from '@/lib/env'
+
+const FALLBACK_TOKEN_IMAGE = '/tokens/pepe-king.jpg'
+
+export function resolveTokenImageUrl(imageURI?: string): string {
+  const raw = (imageURI || '').trim()
+  if (!raw) return FALLBACK_TOKEN_IMAGE
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+  if (raw.startsWith('data:') || raw.startsWith('blob:')) return raw
+  if (raw.startsWith('/')) return new URL(raw, publicEnv.NEXT_PUBLIC_BACKEND_URL).toString()
+  if (raw.startsWith('ipfs://')) return `https://ipfs.io/ipfs/${raw.replace('ipfs://', '')}`
+  return raw
+}
+
+export function holderBalanceToNumber(balance: string): number {
+  try { return Number(formatEther(BigInt(balance || '0'))) } catch { return 0 }
+}
+
+export function toHolderShareV2(holders: BackendHolderV2[]) {
+  const total = holders.reduce((sum, h) => sum + holderBalanceToNumber(h.balance), 0)
+  return holders.map((h) => {
+    const balance = holderBalanceToNumber(h.balance)
+    return {
+      address: h.address,
+      balance,
+      percentage: total > 0 ? (balance / total) * 100 : 0,
+    }
+  })
+}
+
+export function tradeToLiveEventV2(trade: Trade): LiveEvent {
+  return {
+    id: trade.id,
+    type: trade.type,
+    account: trade.account,
+    amount: trade.amount,
+    tokenSymbol: trade.tokenSymbol,
+    tokenImage: trade.tokenImage,
+    time: trade.time,
+  }
+}
 
 export interface TokenV2Ui {
   address: string

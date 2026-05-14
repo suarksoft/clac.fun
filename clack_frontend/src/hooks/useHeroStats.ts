@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { apiClientV2 } from '@/lib/api/client-v2';
+import type { BackendTokenV2 } from '@/lib/api/types-v2';
 
 interface HeroStats {
   liveCount: number;
@@ -9,13 +11,13 @@ interface HeroStats {
   clacdCount: number;
 }
 
-interface LiveToken {
-  id: number;
+export interface HeroLiveToken {
+  address: string;
   slug?: string | null;
   name: string;
   symbol: string;
   imageURI: string;
-  marketCap: string;
+  marketCap: number;
   totalHolders: number;
   change24h: number;
   createdAt: number;
@@ -23,60 +25,58 @@ interface LiveToken {
   dead: boolean;
 }
 
+function toHeroToken(t: BackendTokenV2): HeroLiveToken {
+  return {
+    address: t.address,
+    slug: t.slug,
+    name: t.name,
+    symbol: t.symbol,
+    imageURI: t.imageURI,
+    marketCap: Number(t.marketCap ?? 0),
+    totalHolders: t.totalHolders ?? 0,
+    change24h: t.change24h ?? 0,
+    createdAt: t.createdAt,
+    duration: t.duration,
+    dead: t.deathFinalized,
+  };
+}
+
 export function useHeroStats() {
   const [stats, setStats] = useState<HeroStats>({
     liveCount: 0, totalTrades: 0, totalVolume: '0', clacdCount: 0,
   });
-  const [liveTokens, setLiveTokens] = useState<LiveToken[]>([]);
+  const [liveTokens, setLiveTokens] = useState<HeroLiveToken[]>([]);
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
   const fetchData = useCallback(async () => {
     try {
       const now = Math.floor(Date.now() / 1000);
-      const [statsRes, tokensRes] = await Promise.all([
-        fetch(`${backendUrl}/api/stats`),
-        fetch(`${backendUrl}/api/tokens?filter=live&limit=50`),
+      const [s, tokens] = await Promise.all([
+        apiClientV2.getStats(),
+        apiClientV2.getTokens('live', 50),
       ]);
 
-      if (statsRes.ok) {
-        const data = await statsRes.json();
-        setStats({
-          liveCount: data.liveCount ?? 0,
-          totalTrades: data.totalTrades ?? 0,
-          totalVolume: data.totalVolume ?? '0',
-          clacdCount: data.clacdCount ?? 0,
-        });
-      }
+      setStats({
+        liveCount: s.liveCount ?? 0,
+        totalTrades: s.totalTrades ?? 0,
+        totalVolume: s.totalVolume ?? '0',
+        clacdCount: s.clacdCount ?? 0,
+      });
 
-      if (tokensRes.ok) {
-        const raw = await tokensRes.json();
-        console.log('Hero raw tokens:', raw);
-        // Handle wrapped responses: { data: [] } | { tokens: [] } | []
-        const tokenList: LiveToken[] = Array.isArray(raw)
-          ? raw
-          : (raw.data ?? raw.tokens ?? []);
-        const live = tokenList.filter((t) => {
-          const isDead = t.dead ?? (t as any).isDead ?? false;
-          // createdAt may be seconds or ms — normalise to seconds
-          const createdAtSec =
-            t.createdAt > 1e10 ? Math.floor(t.createdAt / 1000) : t.createdAt;
-          return !isDead && createdAtSec + t.duration > now;
-        });
-        setLiveTokens(live);
-      }
-
-      setLoading(false);
+      const heroTokens = tokens
+        .map(toHeroToken)
+        .filter((t) => !t.dead && t.createdAt + t.duration > now);
+      setLiveTokens(heroTokens);
     } catch (err) {
-      console.error('Hero stats fetch failed:', err);
+      console.error('[useHeroStats] fetch failed', err);
+    } finally {
       setLoading(false);
     }
-  }, [backendUrl]);
+  }, []);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);

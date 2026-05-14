@@ -2,9 +2,9 @@ import {
   Controller,
   Delete,
   Get,
+  Logger,
   NotFoundException,
   Param,
-  ParseIntPipe,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -16,63 +16,9 @@ import { AdminPasswordGuard } from './common/guards/admin-password.guard';
 @Controller('admin')
 @UseGuards(AdminPasswordGuard)
 export class AdminController {
+  private readonly logger = new Logger(AdminController.name);
+
   constructor(private readonly prisma: PrismaService) {}
-
-  @Get('tokens')
-  async getTokens(
-    @Query('limit') limitParam?: string,
-  ) {
-    const parsed = Number(limitParam ?? 100);
-    const limit = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 500) : 100;
-
-    return this.prisma.token.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      select: {
-        id: true,
-        name: true,
-        symbol: true,
-        imageURI: true,
-        dead: true,
-        createdAt: true,
-      },
-    });
-  }
-
-  @Delete('tokens/:id')
-  async deleteToken(@Param('id', ParseIntPipe) id: number) {
-    const token = await this.prisma.token.findUnique({
-      where: { id },
-      select: { id: true, imageURI: true },
-    });
-    if (!token) {
-      throw new NotFoundException('Token not found');
-    }
-
-    await this.prisma.$transaction([
-      this.prisma.trade.deleteMany({ where: { tokenId: id } }),
-      this.prisma.holder.deleteMany({ where: { tokenId: id } }),
-      this.prisma.lotteryWin.deleteMany({ where: { tokenId: id } }),
-      this.prisma.claim.deleteMany({ where: { tokenId: id } }),
-      this.prisma.token.delete({ where: { id } }),
-    ]);
-
-    const imageURI = (token.imageURI ?? '').trim();
-    if (imageURI.includes('/uploads/')) {
-      const filename = basename(imageURI);
-      if (filename) {
-        try {
-          await unlink(`uploads/${filename}`);
-        } catch {
-          // Best effort cleanup only.
-        }
-      }
-    }
-
-    return { ok: true, deletedTokenId: id };
-  }
-
-  // ── V2 admin endpoints ──────────────────────────────────────────────────
 
   @Get('v2/tokens')
   async getV2Tokens(@Query('limit') limitParam?: string) {
@@ -102,22 +48,32 @@ export class AdminController {
     });
     if (!token) throw new NotFoundException('Token not found');
 
-    await this.prisma.$transaction([
-      this.prisma.tradeV2.deleteMany({ where: { tokenAddress: lower } }),
-      this.prisma.holderV2.deleteMany({ where: { tokenAddress: lower } }),
-      this.prisma.lotteryWinV2.deleteMany({ where: { tokenAddress: lower } }),
-      this.prisma.claimV2.deleteMany({ where: { tokenAddress: lower } }),
-      this.prisma.tokenV2.delete({ where: { address: lower } }),
-    ]);
+    try {
+      await this.prisma.$transaction([
+        this.prisma.tradeV2.deleteMany({ where: { tokenAddress: lower } }),
+        this.prisma.holderV2.deleteMany({ where: { tokenAddress: lower } }),
+        this.prisma.lotteryWinV2.deleteMany({ where: { tokenAddress: lower } }),
+        this.prisma.claimV2.deleteMany({ where: { tokenAddress: lower } }),
+        this.prisma.tokenV2.delete({ where: { address: lower } }),
+      ]);
+    } catch (err) {
+      this.logger.error(`Failed to delete V2 token ${lower}`, err instanceof Error ? err.stack : String(err));
+      throw err;
+    }
 
     const imageURI = (token.imageURI ?? '').trim();
     if (imageURI.includes('/uploads/')) {
       const filename = basename(imageURI);
       if (filename) {
-        try { await unlink(`uploads/${filename}`); } catch { /* best effort */ }
+        try {
+          await unlink(`uploads/${filename}`);
+        } catch (e) {
+          this.logger.warn(`Failed to unlink upload ${filename}: ${e instanceof Error ? e.message : String(e)}`);
+        }
       }
     }
 
+    this.logger.log(`Deleted V2 token ${lower}`);
     return { ok: true, deletedAddress: lower };
   }
 }
