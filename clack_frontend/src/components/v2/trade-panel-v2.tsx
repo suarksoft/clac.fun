@@ -28,8 +28,10 @@ import { cn } from '@/lib/utils'
 // Cost from supply S to buy T: K_human * 2/3 * [(S+T)^1.5 - S^1.5]
 // Inverse: given cost & S → T
 function estimateBuyTokens(inputMON: number, currentPrice: number, virtualSupply: number): number {
-  if (inputMON <= 0 || currentPrice <= 0 || virtualSupply <= 0) return 0
+  if (inputMON <= 0) return 0
   const netMON = inputMON * 0.985
+  // When supply=0 the price is 0 and K is indeterminate — skip estimate, tx uses minTokens=0
+  if (currentPrice <= 0 || virtualSupply <= 0) return -1
   const K = currentPrice / Math.sqrt(virtualSupply)
   const inner = Math.pow(virtualSupply, 1.5) + (netMON * 3) / (2 * K)
   return Math.max(0, Math.pow(inner, 2 / 3) - virtualSupply)
@@ -92,6 +94,7 @@ export function TradePanelV2({
     try { return parseEther(normalized) } catch { return null }
   }, [amount])
 
+  // -1 means supply=0, estimate unavailable (tx will still work with minTokens=0)
   const estimatedBuyTokens = useMemo(() => {
     if (activeTab !== 'buy' || !amount) return 0
     const mon = parseFloat(amount)
@@ -111,8 +114,9 @@ export function TradePanelV2({
     return (1 - Math.sqrt(newSupply / virtualSupply)) * 100
   }, [activeTab, estimatedBuyTokens, amount, virtualSupply])
 
+  const isZeroSupply = estimatedBuyTokens === -1
   const wouldExceedWhaleLimit =
-    activeTab === 'buy' && !atWhaleLimit && remainingCapacity > 0 && estimatedBuyTokens > remainingCapacity
+    activeTab === 'buy' && !atWhaleLimit && remainingCapacity > 0 && estimatedBuyTokens > 0 && estimatedBuyTokens > remainingCapacity
 
   // On-chain balance read
   const { data: balanceOnChain } = useReadContract({
@@ -269,7 +273,7 @@ export function TradePanelV2({
       if (activeTab === 'buy') {
         const minTokens = estimatedBuyTokens > 0 && effectiveSlippage > 0
           ? parseEther((estimatedBuyTokens * (1 - effectiveSlippage / 100)).toFixed(18))
-          : BigInt(0)
+          : BigInt(0)  // supply=0 or no estimate → no slippage protection
         await writeContractAsync({
           address: tokenAddress,
           abi: CLAC_TOKEN_V2_ABI,
@@ -477,7 +481,9 @@ export function TradePanelV2({
             <span className="text-muted-foreground">You receive</span>
             <span className="font-mono font-semibold text-foreground">
               {activeTab === 'buy'
-                ? estimatedBuyTokens > 0 ? `~${formatAbbreviatedTokenAmount(estimatedBuyTokens)} ${tokenSymbol}` : `– ${tokenSymbol}`
+                ? isZeroSupply && amount
+                  ? <span className="text-muted-foreground italic">calculated on-chain</span>
+                  : estimatedBuyTokens > 0 ? `~${formatAbbreviatedTokenAmount(estimatedBuyTokens)} ${tokenSymbol}` : `– ${tokenSymbol}`
                 : sellQuoteMon !== null ? `${formatTokenPrice(sellQuoteMon)} MON` : `– MON`}
             </span>
           </div>

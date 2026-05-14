@@ -112,14 +112,6 @@ export default function CreateTokenPage() {
     functionName: 'defaultK',
   })
 
-  const { data: publicCreationRaw } = useReadContract({
-    address: CLAC_FACTORY_V2_ADDRESS,
-    abi: CLAC_FACTORY_V2_ABI,
-    functionName: 'publicCreation',
-  })
-
-  const isPublicCreation = publicCreationRaw === undefined ? null : Boolean(publicCreationRaw)
-
   const creationFeeMon = creationFeeRaw ? Number(formatEther(creationFeeRaw)) : 0
   const estimatedTokens = defaultKRaw
     ? estimateInitialBuyTokens(initialBuyMon, defaultKRaw)
@@ -670,14 +662,6 @@ export default function CreateTokenPage() {
                     </div>
                   </div>
 
-                  {isPublicCreation === false && !isPending && !isConfirming && !isSuccess && (
-                    <div className="mb-3 rounded-xl border border-orange-500/20 bg-orange-500/10 p-3 text-center">
-                      <p className="text-xs text-orange-400">
-                        Token creation is currently restricted to admins. Check back soon.
-                      </p>
-                    </div>
-                  )}
-
                   {isWrongChain && isConnected && !isPending && !isConfirming && !isSuccess && (
                     <div className="mb-3 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-center">
                       <p className="text-xs text-amber-400">Wrong network — please switch to Monad Testnet (10143).</p>
@@ -691,9 +675,9 @@ export default function CreateTokenPage() {
                   ) : (
                     <button
                       onClick={() => void handleCreate()}
-                      disabled={!isFormValid || isBusy || isWrongChain || isPublicCreation === false}
+                      disabled={!isFormValid || isBusy || isWrongChain}
                       className={`w-full rounded-xl py-4 text-base font-bold transition-all duration-300 ${
-                        !isFormValid || isBusy || isWrongChain || isPublicCreation === false
+                        !isFormValid || isBusy || isWrongChain
                           ? 'cursor-not-allowed bg-gray-800 text-gray-500'
                           : 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-xl shadow-violet-500/20 hover:from-violet-500 hover:to-purple-500 active:scale-[0.98]'
                       }`}

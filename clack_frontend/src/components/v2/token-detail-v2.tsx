@@ -528,12 +528,12 @@ export function TokenDetailV2({ idOrSlug }: TokenDetailV2Props) {
               )}
 
               {/* Trade panel (live) */}
-              {!deathFinalized && resolvedAddress && (
+              {!deathFinalized && resolvedAddress && activeToken && (
                 <TradePanelV2
                   tokenAddress={resolvedAddress}
-                  tokenSymbol={activeToken!.symbol}
+                  tokenSymbol={activeToken.symbol}
                   currentPrice={displayPrice}
-                  virtualSupply={activeToken!.virtualSupply}
+                  virtualSupply={activeToken.virtualSupply}
                   isInLastHour={isInLastHour}
                   isDead={isDead}
                   onTradeSuccess={() => { tokenQuery.refetch(); tradesQuery.refetch(); refetchChain() }}
