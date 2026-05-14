@@ -50,7 +50,10 @@ export function TokenDetailV2({ idOrSlug }: TokenDetailV2Props) {
   const tokenQuery = useQuery({
     queryKey: ['v2-token', idOrSlug],
     queryFn: () => apiClientV2.getToken(idOrSlug),
-    refetchInterval: 10000,
+    // 404 returns null (not an error), so refetchInterval polls until indexer catches up.
+    // Disable window-focus refetch to avoid spamming when token is not yet indexed.
+    refetchInterval: (query) => (query.state.data === null ? 5000 : 10000),
+    refetchOnWindowFocus: (query) => query.state.data !== null,
   })
   const token = tokenQuery.data ? toUiTokenV2(tokenQuery.data) : null
 

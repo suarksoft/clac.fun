@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Web3Provider } from '@/components/providers/web3-provider'
+import { ErrorBoundary } from '@/components/error-boundary'
 import './globals.css'
 
 const geistSans = Geist({ 
@@ -47,7 +48,9 @@ export default function RootLayout({
           enableColorScheme={false}
           disableTransitionOnChange
         >
-          <Web3Provider>{children}</Web3Provider>
+          <Web3Provider>
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </Web3Provider>
         </ThemeProvider>
       </body>
     </html>

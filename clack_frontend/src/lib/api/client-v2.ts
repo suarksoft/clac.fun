@@ -12,6 +12,15 @@ async function fetchJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>
 }
 
+async function fetchJsonOrNull<T>(path: string): Promise<T | null> {
+  const response = await fetch(`${BACKEND_URL}${path}`, {
+    next: { revalidate: 5 },
+  })
+  if (response.status === 404) return null
+  if (!response.ok) throw new Error(`V2 API request failed for ${path}`)
+  return response.json() as Promise<T>
+}
+
 export const apiClientV2 = {
   getTokens: (filter?: 'live' | 'dying' | 'dead' | 'new' | 'hot', limit = 50) => {
     const params = new URLSearchParams()
@@ -21,7 +30,7 @@ export const apiClientV2 = {
   },
 
   getToken: (addressOrSlug: string) =>
-    fetchJson<BackendTokenV2>(`/api/v2/tokens/${addressOrSlug}`),
+    fetchJsonOrNull<BackendTokenV2>(`/api/v2/tokens/${addressOrSlug}`),
 
   getTrades: (address: string, limit = 50) =>
     fetchJson<BackendTradeV2[]>(`/api/v2/tokens/${address}/trades?limit=${limit}`),
