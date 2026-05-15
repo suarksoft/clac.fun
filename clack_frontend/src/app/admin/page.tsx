@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Header } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -124,7 +124,12 @@ export default function AdminPage() {
     }
   }
 
-  useEffect(() => { loadConfig() }, [publicClient])
+  const hasLoadedConfigRef = useRef(false)
+  useEffect(() => {
+    if (!publicClient || hasLoadedConfigRef.current) return
+    hasLoadedConfigRef.current = true
+    void loadConfig()
+  }, [publicClient])
 
   useEffect(() => {
     if (!isAdminUnlocked || !adminPassword) return
@@ -487,27 +492,31 @@ export default function AdminPage() {
       <div className="flex min-h-screen flex-col bg-background">
         <Header />
         <main className="flex-1">
-          <div className="container mx-auto flex max-w-md flex-col gap-4 px-4 py-12">
+          <form
+            className="container mx-auto flex max-w-md flex-col gap-4 px-4 py-12"
+            onSubmit={(e) => { e.preventDefault(); void unlockAdminPanel() }}
+          >
             <h1 className="text-3xl font-bold text-foreground">Admin Login</h1>
             <p className="text-sm text-muted-foreground">Admin paneline girmek icin sifreyi gir.</p>
             <div className="space-y-2">
               <Label htmlFor="admin-password">Sifre</Label>
               <Input
                 id="admin-password"
+                name="password"
                 type="password"
+                autoComplete="current-password"
                 value={adminPasswordInput}
                 onChange={(e) => setAdminPasswordInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') void unlockAdminPanel() }}
                 placeholder="Admin sifresi"
               />
             </div>
-            <Button onClick={() => void unlockAdminPanel()} disabled={isAuthChecking}>
+            <Button type="submit" disabled={isAuthChecking}>
               {isAuthChecking ? 'Kontrol ediliyor...' : 'Admin Girisi Yap'}
             </Button>
             {errorText && (
               <p className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-400">{errorText}</p>
             )}
-          </div>
+          </form>
         </main>
       </div>
     )
